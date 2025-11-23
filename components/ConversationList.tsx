@@ -262,6 +262,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         
         address = identity.walletAddress.toLowerCase()
         console.log('✅ Resolved mention:', { username, address, source: identity.source })
+        // Continue to create conversation automatically after mention resolution
       } else {
         // Not a mention - could be ENS name (username.eth) or Ethereum address
         address = inputLower
@@ -290,6 +291,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           
           address = identity.walletAddress.toLowerCase()
           console.log('✅ Resolved ENS:', { ens: address, address: identity.walletAddress })
+          // Continue to create conversation automatically after ENS resolution
         } else if (!address.startsWith('0x') || address.length !== 42) {
           console.log('❌ Invalid address format:', { startsWith0x: address.startsWith('0x'), length: address.length })
           setError('Please enter a valid Ethereum address (0x...), ENS name (name.eth), or mention (@username or @username.eth)')
