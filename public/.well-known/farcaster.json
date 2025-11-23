@@ -7,17 +7,17 @@
   "miniapp": {
     "version": "1",
     "name": "NeetChat",
-    "subtitle": "Decentralized wallet-to-wallet messaging",
-    "description": "NeetChat is a decentralized messaging app built on XMTP protocol. Chat securely with any Ethereum wallet address, resolve ENS names and Farcaster usernames, and enjoy end-to-end encrypted conversations. Connect your wallet and start messaging instantly.",
-    "tagline": "Chat with any wallet. No sign-ups. No servers. Just crypto.",
-    "iconUrl": "https://neetchat3.vercel.app/logo.svg",
-    "homeUrl": "https://neetchat3.vercel.app/chat",
+    "subtitle": "Wallet-to-wallet messaging",
+    "description": "Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address, resolve ENS names and Farcaster usernames. End-to-end encrypted conversations.",
+    "tagline": "Chat with any wallet",
+    "iconUrl": "https://neetchat3.vercel.app/logo.png",
+    "homeUrl": "https://neetchat3.vercel.app",
     "imageUrl": "https://neetchat3.vercel.app/og-image.svg",
     "heroImageUrl": "https://neetchat3.vercel.app/og-image.svg",
     "buttonTitle": "💬 Chat",
-    "splashImageUrl": "https://neetchat3.vercel.app/logo.svg",
+    "splashImageUrl": "https://neetchat3.vercel.app/logo.png",
     "splashBackgroundColor": "#0ea5e9",
-    "primaryCategory": "Social",
+    "primaryCategory": "social",
     "tags": [
       "messaging",
       "xmtp",
@@ -33,8 +33,8 @@
     "screenshotUrls": [
       "https://neetchat3.vercel.app/og-image.svg"
     ],
-    "ogTitle": "NeetChat - XMTP Wallet-to-Wallet Messaging",
-    "ogDescription": "Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address. No sign-ups required.",
+    "ogTitle": "NeetChat - XMTP Messaging",
+    "ogDescription": "Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address.",
     "ogImageUrl": "https://neetchat3.vercel.app/og-image.svg",
     "castShareUrl": "https://neetchat3.vercel.app/chat"
   }
