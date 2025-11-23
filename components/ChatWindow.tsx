@@ -447,9 +447,11 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
               // Check if message is from me using multiple methods:
               // 1. Compare senderInboxId (most reliable for V3/MLS)
               // 2. Compare senderAddress (legacy/V2)
+              // 3. Check if it's an optimistic message (temp ID)
               const isFromMe = 
                 (myInboxId && message.senderInboxId && message.senderInboxId === myInboxId) ||
-                (address && message.senderAddress && message.senderAddress.toLowerCase() === address.toLowerCase())
+                (address && message.senderAddress && message.senderAddress.toLowerCase() === address.toLowerCase()) ||
+                (message.id && message.id.startsWith('temp-')) // Optimistic messages are always from me
               
               return (
                 <div
