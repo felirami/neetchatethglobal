@@ -36,7 +36,7 @@
     "ogTitle": "NeetChat - XMTP Messaging",
     "ogDescription": "Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address.",
     "ogImageUrl": "https://neetchat3.vercel.app/og-image.svg",
-    "castShareUrl": "https://neetchat3.vercel.app/chat"
+    "castShareUrl": "https://neetchat3.vercel.app"
   }
 }
 
