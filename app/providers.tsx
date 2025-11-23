@@ -6,6 +6,7 @@ import { mainnet, sepolia } from 'wagmi/chains'
 import { injected, metaMask, walletConnect } from '@wagmi/connectors'
 import { XMTPProvider } from '@/contexts/XMTPContext'
 import { TestWalletProvider } from '@/contexts/TestWalletContext'
+import { IdentityProvider } from '@/contexts/IdentityContext'
 
 const queryClient = new QueryClient()
 
@@ -38,7 +39,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <TestWalletProvider>
-          <XMTPProvider>{children}</XMTPProvider>
+          <IdentityProvider>
+            <XMTPProvider>{children}</XMTPProvider>
+          </IdentityProvider>
         </TestWalletProvider>
       </QueryClientProvider>
     </WagmiProvider>
