@@ -231,7 +231,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         // Extract username from mention
         const mentions = extractMentions(address)
         if (mentions.length === 0) {
-          setError('Invalid mention format. Use @username, @name.eth, or @agent')
+          setError('Invalid mention format. Use @username (Farcaster) or @name.eth (ENS)')
           setIsResolving(false)
           return
         }
@@ -245,7 +245,11 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         setIsResolving(false)
         
         if (!identity || !identity.walletAddress) {
-          setError(`Could not resolve @${username}. They may not have a Farcaster account, ENS name, or be in the directory.`)
+          if (username.endsWith('.eth')) {
+            setError(`Could not resolve ENS name @${username}. Make sure the ENS name exists and is properly configured.`)
+          } else {
+            setError(`Could not resolve Farcaster username @${username}. They may not have a Farcaster account or be in the directory.`)
+          }
           return
         }
         
