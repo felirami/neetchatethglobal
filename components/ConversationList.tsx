@@ -112,7 +112,11 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
 
   // Extract conversation creation logic to be called from modal confirmation
   const createConversationWithAddress = async (address: string) => {
-    console.log('📍 Creating conversation with address:', address)
+    console.log('🚀 createConversationWithAddress called with address:', address)
+    console.log('   Address type:', typeof address)
+    console.log('   Address length:', address?.length)
+    console.log('   Client available:', !!client)
+    console.log('   Resolved identity:', resolvedIdentity)
     
     if (!address) {
       console.error('❌ No address provided to createConversationWithAddress')
@@ -133,6 +137,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
 
       const inputAddress = address.toLowerCase()
       console.log('📍 Processing address for conversation creation:', inputAddress)
+      console.log('   Is valid Ethereum address:', inputAddress.startsWith('0x') && inputAddress.length === 42)
       
       console.log('📍 Processing address:', inputAddress)
 
