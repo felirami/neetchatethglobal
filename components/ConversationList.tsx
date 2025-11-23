@@ -6,6 +6,8 @@ import { useIdentity } from '@/contexts/IdentityContext'
 import { resolveMention, ResolvedIdentity } from '@/lib/identity/resolve'
 import { extractMentions } from '@/lib/mentions'
 import { IdentityConfirmationModal } from '@/components/IdentityConfirmationModal'
+import { useAccount } from 'wagmi'
+import { useTestWallet } from '@/contexts/TestWalletContext'
 
 // Helper to identify the "success" error from XMTP
 const isSyncSuccessError = (error: any): boolean => {
@@ -35,6 +37,9 @@ interface ConversationListProps {
 export function ConversationList({ onSelectConversation, selectedConversationId }: ConversationListProps) {
   const { client } = useXMTP()
   const { resolveMention: resolveMentionCached } = useIdentity()
+  const { address } = useAccount()
+  const { isTestWallet, testWalletAddress } = useTestWallet()
+  const currentUserAddress = isTestWallet ? testWalletAddress : address
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchAddress, setSearchAddress] = useState('')
@@ -206,14 +211,14 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
 
       // Check if the address has XMTP before creating conversation
       // Note: canMessage can sometimes return false negatives, so we'll try to proceed anyway
-      const { Client, IdentifierKind } = await import('@xmtp/browser-sdk')
+      const { Client } = await import('@xmtp/browser-sdk')
       
       let canMessage = false
       let canMessageDebugInfo: any = null
       
       const targetIdentifier = {
         identifier: inputAddress,
-        identifierKind: IdentifierKind?.Ethereum ?? 'Ethereum',
+        identifierKind: 'Ethereum' as const,
       }
 
       try {
@@ -295,29 +300,155 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         console.log('🔍 Checking existing DMs for address:', inputAddress)
         console.log('   Total existing DMs:', existingDms.length)
         
-        // Log all existing DMs for debugging
+        // Check localStorage mappings first to help find conversations without peerAddress
+        let localStorageMatch: any = null
+        if (typeof window !== 'undefined') {
+          const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+          console.log('   Checking localStorage mappings:', addressMap)
+          console.log('   Looking for address:', inputAddress)
+          console.log('   All mapped addresses:', Object.values(addressMap))
+          
+          // Check for exact match
+          for (const [convId, mappedAddress] of Object.entries(addressMap)) {
+            if (typeof mappedAddress === 'string' && mappedAddress.toLowerCase() === inputAddress.toLowerCase()) {
+              console.log('✅ Found localStorage mapping:', convId, '→', mappedAddress)
+              localStorageMatch = { id: convId, address: mappedAddress }
+              break
+            }
+          }
+          
+          // If no exact match, log all mappings for debugging
+          if (!localStorageMatch) {
+            console.log('   No localStorage match found. Current mappings:')
+            Object.entries(addressMap).forEach(([convId, addr]) => {
+              console.log(`     ${convId.slice(0, 8)}... → ${addr}`)
+            })
+          }
+        }
+        
+        // Log all existing DMs for debugging - including peerInboxId
         existingDms.forEach((dm: any, index: number) => {
-          const peerAddr = dm.peerAddress || dm.peer?.address || dm.address
-          // Debug the full object structure to see where address might be hiding
+          // Check localStorage mapping for this specific DM
+          let dmMappedAddress: string | null = null
+          if (typeof window !== 'undefined') {
+            const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+            dmMappedAddress = addressMap[dm.id] || null
+          }
+          
+          // Get peerInboxId from conversation (might be a function or property)
+          const peerInboxIdValue = typeof (dm as any).peerInboxId === 'function'
+            ? (dm as any).peerInboxId()
+            : (dm as any).peerInboxId
+          
+          const peerAddr = dm.peerAddress || dm.peer?.address || dm.address || dmMappedAddress ||
+            (localStorageMatch && dm.id === localStorageMatch.id ? localStorageMatch.address : null)
+          
+          // Debug the full object structure to see where address/inboxId might be hiding
           if (!peerAddr) {
              console.log(`   DM ${index + 1} (No peerAddress found):`, {
                  id: dm.id,
+                 idShort: dm.id?.slice(0, 8),
                  keys: Object.keys(dm),
-                 topic: dm.topic
+                 topic: dm.topic,
+                 topicShort: dm.topic?.slice(0, 20),
+                 peerInboxId: peerInboxIdValue || '(none)',
+                 hasLocalStorageMapping: !!dmMappedAddress,
+                 localStorageAddress: dmMappedAddress,
+                 isLocalStorageMatch: localStorageMatch && dm.id === localStorageMatch.id
              })
           } else {
+              const matches = peerAddr.toLowerCase() === inputAddress.toLowerCase()
               console.log(`   DM ${index + 1}:`, {
                 id: dm.id,
+                idShort: dm.id?.slice(0, 8),
                 peerAddress: peerAddr,
-                matches: peerAddr?.toLowerCase() === inputAddress.toLowerCase()
+                peerInboxId: peerInboxIdValue || '(none)',
+                matches: matches,
+                hasLocalStorageMapping: !!dmMappedAddress,
+                localStorageAddress: dmMappedAddress,
+                isLocalStorageMatch: localStorageMatch && dm.id === localStorageMatch.id
               })
+              
+              // If this DM matches, log it prominently
+              if (matches) {
+                console.log('🎯 FOUND MATCHING DM!', {
+                  dmId: dm.id,
+                  peerAddress: peerAddr,
+                  peerInboxId: peerInboxIdValue,
+                  source: dmMappedAddress ? 'localStorage' : 'conversation object'
+                })
+              }
           }
         })
         
+        // First check: If localStorage has a match, use that conversation
+        if (localStorageMatch) {
+          const matchedDm = existingDms.find((dm: any) => dm.id === localStorageMatch.id)
+          if (matchedDm) {
+            console.log('✅ Found existing DM via localStorage mapping:', {
+              dmId: matchedDm.id,
+              mappedAddress: localStorageMatch.address,
+              targetAddress: inputAddress
+            })
+            // Restore the peerAddress on the conversation object
+            if (!matchedDm.peerAddress) {
+              (matchedDm as any).peerAddress = localStorageMatch.address
+            }
+            onSelectConversation(matchedDm)
+            setSearchAddress('')
+            setResolvedIdentity(null)
+            setPendingAddress(null)
+            setShowConfirmationModal(false)
+            setIsCreatingConversation(false)
+            return
+          }
+        }
+        
+        // Try to get inboxId for the address first - this is the proper way to match in XMTP V3/MLS
+        let targetInboxId: string | null = null
+        try {
+          // Try findInboxIdByIdentifier first
+          const inboxIdResult = await client.findInboxIdByIdentifier({
+            identifier: inputAddress,
+            identifierKind: 'Ethereum' as const
+          })
+          if (inboxIdResult) {
+            targetInboxId = inboxIdResult
+            console.log('✅ Got inboxId for address:', inputAddress, '→', targetInboxId)
+          }
+        } catch (err: any) {
+          console.log('⚠️ Could not get inboxId for address (will try address matching):', err?.message || err)
+        }
+        
+        // Second check: Find DM by peerAddress match OR peerInboxId match (including localStorage mappings)
         const existingDm = existingDms.find((dm: any) => {
-          const peerAddr = dm.peerAddress || dm.peer?.address || dm.address
+          // Check localStorage mapping for this specific DM
+          let dmMappedAddress: string | null = null
+          if (typeof window !== 'undefined') {
+            const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+            dmMappedAddress = addressMap[dm.id] || null
+          }
+          
+          // Get peerInboxId from conversation (might be a function or property)
+          const peerInboxIdValue = typeof (dm as any).peerInboxId === 'function'
+            ? (dm as any).peerInboxId()
+            : (dm as any).peerInboxId
+          
+          const peerAddr = dm.peerAddress || dm.peer?.address || dm.address || dmMappedAddress
+          
+          // Match by inboxId if we have it (preferred method for V3/MLS)
+          if (targetInboxId && peerInboxIdValue && peerInboxIdValue === targetInboxId) {
+            console.log('✅ Found match by peerInboxId!', {
+              dmId: dm.id,
+              peerInboxId: peerInboxIdValue,
+              targetInboxId: targetInboxId
+            })
+            return true
+          }
+          
+          // Fallback: Match by address
           if (!peerAddr) {
-            // Skip DMs without addresses - they can't match
+            // Skip DMs without addresses - they can't match (unless localStorage matched above)
             return false
           }
           const matches = peerAddr.toLowerCase() === inputAddress.toLowerCase()
@@ -325,7 +456,8 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
             console.log('✅ Found existing DM with matching address:', {
               dmId: dm.id,
               peerAddress: peerAddr,
-              targetAddress: inputAddress
+              targetAddress: inputAddress,
+              source: dmMappedAddress ? 'localStorage' : 'conversation object'
             })
           }
           return matches
@@ -442,35 +574,122 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         console.error('==============================')
         
         // Try one more thing - check all conversations (not just DMs) for address match
+        // Also check localStorage mappings in case the conversation exists but peerAddress is missing
         if (!inboxId) {
           try {
             console.log('🔍 Checking all conversations (not just DMs) for address:', inputAddress)
             const allConversations = await client.conversations.list()
             console.log('   Total conversations:', allConversations.length)
             
-            // Log all conversations for debugging
+            // Also check localStorage mappings
+            let localStorageMatch: any = null
+            if (typeof window !== 'undefined') {
+              const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+              console.log('   Checking localStorage mappings:', addressMap)
+              for (const [convId, mappedAddress] of Object.entries(addressMap)) {
+                if (typeof mappedAddress === 'string' && mappedAddress.toLowerCase() === inputAddress.toLowerCase()) {
+                  console.log('✅ Found localStorage mapping:', convId, '→', mappedAddress)
+                  localStorageMatch = { id: convId, address: mappedAddress }
+                  break
+                }
+              }
+            }
+            
+            // Log all conversations for debugging - including peerInboxId
             allConversations.forEach((conv: any, index: number) => {
-              const peerAddr = conv.peerAddress || conv.peer?.address || conv.address
+              // Get peerInboxId from conversation (might be a function or property)
+              const peerInboxIdValue = typeof (conv as any).peerInboxId === 'function'
+                ? (conv as any).peerInboxId()
+                : (conv as any).peerInboxId
+              
+              const peerAddr = conv.peerAddress || conv.peer?.address || conv.address || 
+                (localStorageMatch && conv.id === localStorageMatch.id ? localStorageMatch.address : null)
               console.log(`   Conversation ${index + 1}:`, {
                 id: conv.id,
                 peerAddress: peerAddr || '(no address)',
-                matches: peerAddr?.toLowerCase() === inputAddress.toLowerCase()
+                peerInboxId: peerInboxIdValue || '(none)',
+                matches: peerAddr?.toLowerCase() === inputAddress.toLowerCase(),
+                matchesInboxId: targetInboxId && peerInboxIdValue && peerInboxIdValue === targetInboxId,
+                isLocalStorageMatch: localStorageMatch && conv.id === localStorageMatch.id
               })
             })
             
-            // Look for any conversation with this EXACT address
+            // First, check if localStorage has a match and find that conversation
+            if (localStorageMatch) {
+              const matchedConv = allConversations.find((c: any) => c.id === localStorageMatch.id)
+              if (matchedConv) {
+                console.log('✅ Found existing conversation via localStorage mapping:', {
+                  convId: matchedConv.id,
+                  mappedAddress: localStorageMatch.address,
+                  targetAddress: inputAddress
+                })
+                // Restore the peerAddress on the conversation object
+                if (!matchedConv.peerAddress) {
+                  (matchedConv as any).peerAddress = localStorageMatch.address
+                }
+                onSelectConversation(matchedConv)
+                setSearchAddress('')
+                setResolvedIdentity(null)
+                setPendingAddress(null)
+                setShowConfirmationModal(false)
+                setIsCreatingConversation(false)
+                return
+              }
+            }
+            
+            // Look for any conversation with this EXACT address OR matching peerInboxId
             for (const conv of allConversations) {
-              const peerAddr = conv.peerAddress || conv.peer?.address || conv.address
+              // Check localStorage mapping for this specific conversation
+              let convMappedAddress: string | null = null
+              if (typeof window !== 'undefined') {
+                const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+                convMappedAddress = addressMap[conv.id] || null
+              }
+              
+              // Get peerInboxId from conversation (might be a function or property)
+              const peerInboxIdValue = typeof (conv as any).peerInboxId === 'function'
+                ? (conv as any).peerInboxId()
+                : (conv as any).peerInboxId
+              
+              const peerAddr = conv.peerAddress || conv.peer?.address || conv.address || convMappedAddress
+              
+              // Match by inboxId if we have it (preferred method for V3/MLS)
+              if (targetInboxId && peerInboxIdValue && peerInboxIdValue === targetInboxId) {
+                console.log('✅ Found match by peerInboxId in all conversations!', {
+                  convId: conv.id,
+                  peerInboxId: peerInboxIdValue,
+                  targetInboxId: targetInboxId
+                })
+                // Restore the peerAddress on the conversation object if we have it
+                if (!conv.peerAddress && inputAddress) {
+                  (conv as any).peerAddress = inputAddress
+                }
+                onSelectConversation(conv)
+                setSearchAddress('')
+                setResolvedIdentity(null)
+                setPendingAddress(null)
+                setShowConfirmationModal(false)
+                setIsCreatingConversation(false)
+                return
+              }
+              
+              // Fallback: Match by address
               if (!peerAddr) {
-                // Skip conversations without addresses
+                // Skip conversations without addresses (unless matched by inboxId above)
                 continue
               }
+              
               if (peerAddr.toLowerCase() === inputAddress.toLowerCase()) {
                 console.log('✅ Found existing conversation with matching address:', {
                   convId: conv.id,
                   peerAddress: peerAddr,
-                  targetAddress: inputAddress
+                  targetAddress: inputAddress,
+                  source: convMappedAddress ? 'localStorage' : 'conversation object'
                 })
+                // Restore peerAddress if it was from localStorage
+                if (!conv.peerAddress && convMappedAddress) {
+                  (conv as any).peerAddress = convMappedAddress
+                }
                 // Double-check the address matches before using it
                 if (peerAddr.toLowerCase() === inputAddress.toLowerCase()) {
                   console.log('✅ Using existing conversation with correct address:', conv.id)
@@ -485,6 +704,104 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
               }
             }
             console.log('ℹ️ No existing conversation found with matching address')
+            
+            // Method 6: Try to identify conversation by checking message senders
+            // This helps when conversations exist but don't have peerAddress stored
+            console.log('🔍 Attempting to identify conversation by checking message senders...')
+            try {
+              const conversationsWithoutAddress = allConversations.filter((conv: any) => {
+                const peerAddr = conv.peerAddress || conv.peer?.address || conv.address
+                const mappedAddr = typeof window !== 'undefined' 
+                  ? JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')[conv.id]
+                  : null
+                return !peerAddr && !mappedAddr
+              })
+              
+              console.log(`   Found ${conversationsWithoutAddress.length} conversations without addresses to check`)
+              
+              for (const conv of conversationsWithoutAddress) {
+                try {
+                  // Try to get messages from this conversation
+                  if (typeof conv.messages === 'function') {
+                    const messages = await conv.messages() // Get all messages (no limit parameter)
+                    const recentMessages = (messages || []).slice(0, 10) // Take first 10 for checking
+                    console.log(`   Checking conversation ${conv.id.slice(0, 8)}... (${recentMessages.length} of ${messages?.length || 0} messages)`)
+                    
+                    // Check if any message sender matches the target address
+                    // Also check if messages are NOT from current user (indicating peer)
+                    const myInboxId = client?.inboxId || client?.installationId
+                    
+                    // Log first message structure for debugging
+                    if (recentMessages.length > 0) {
+                      const firstMsg = recentMessages[0]
+                      const senderAddr = (firstMsg as any).senderAddress || (firstMsg as any).sender?.address
+                      const senderInboxId = (firstMsg as any).senderInboxId
+                      console.log(`   Sample message fields for ${conv.id.slice(0, 8)}:`, {
+                        hasSenderAddress: !!senderAddr,
+                        hasSenderInboxId: !!senderInboxId,
+                        senderAddress: senderAddr,
+                        senderInboxId: senderInboxId,
+                        myInboxId: myInboxId,
+                        myAddress: currentUserAddress,
+                        allKeys: Object.keys(firstMsg || {}).slice(0, 10)
+                      })
+                    }
+                    
+                    for (const msg of recentMessages) {
+                      const senderAddr = (msg as any).senderAddress || (msg as any).sender?.address
+                      const senderInboxId = (msg as any).senderInboxId
+                      
+                      // Method 1: Direct address match
+                      if (senderAddr && senderAddr.toLowerCase() === inputAddress.toLowerCase()) {
+                        console.log(`✅ Found match by senderAddress! Conversation ${conv.id.slice(0, 8)} has messages from ${inputAddress}`)
+                        // Automatically map this conversation
+                        if (typeof window !== 'undefined') {
+                          const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+                          addressMap[conv.id] = inputAddress.toLowerCase()
+                          localStorage.setItem('xmtp_conversation_addresses', JSON.stringify(addressMap))
+                          console.log(`💾 Auto-mapped conversation ${conv.id.slice(0, 8)} → ${inputAddress}`)
+                        }
+                        // Restore peerAddress on conversation object
+                        if (!conv.peerAddress) {
+                          (conv as any).peerAddress = inputAddress
+                        }
+                        // Use this conversation
+                        onSelectConversation(conv)
+                        setSearchAddress('')
+                        setResolvedIdentity(null)
+                        setPendingAddress(null)
+                        setShowConfirmationModal(false)
+                        setIsCreatingConversation(false)
+                        return
+                      }
+                      
+                      // Method 2: Check if message is NOT from current user (peer message)
+                      // If we have messages that are NOT from us, this might be the peer conversation
+                      const isFromMe = 
+                        (myInboxId && senderInboxId && senderInboxId === myInboxId) ||
+                        (currentUserAddress && senderAddr && senderAddr.toLowerCase() === currentUserAddress.toLowerCase())
+                      
+                      if (!isFromMe && recentMessages.length > 0) {
+                        // This conversation has messages from someone else (the peer)
+                        // If this is the only conversation with peer messages, it might be Vitalik's
+                        // But we can't be 100% sure without address, so we'll log it for manual checking
+                        console.log(`   ⚠️ Conversation ${conv.id.slice(0, 8)} has messages from peer (not from current user)`, {
+                          senderAddress: senderAddr || '(none)',
+                          senderInboxId: senderInboxId || '(none)',
+                          messageCount: recentMessages.length
+                        })
+                      }
+                    }
+                  }
+                } catch (msgError: any) {
+                  console.warn(`   Could not check messages for conversation ${conv.id.slice(0, 8)}:`, msgError?.message || msgError)
+                  // Continue checking other conversations
+                }
+              }
+              console.log('   No conversation found with matching message sender')
+            } catch (identifyError: any) {
+              console.warn('Error trying to identify conversation by message senders:', identifyError?.message || identifyError)
+            }
           } catch (err: any) {
             console.error('Error checking all conversations:', err?.message || err)
           }
@@ -561,23 +878,32 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           errorMsg += `Address: ${inputAddress.slice(0, 6)}...${inputAddress.slice(-4)}\n\n`
           
           if (!canMessage) {
-            errorMsg += `❌ This address doesn't have an XMTP identity yet.\n\n`
-            errorMsg += `What this means:\n`
-            errorMsg += `• They haven't connected their wallet to an XMTP app\n`
-            errorMsg += `• They need to initialize their XMTP identity first\n\n`
-            errorMsg += `What you can do:\n`
-            errorMsg += `1. Ask them to connect to an XMTP app (like Converse, Coinbase Wallet, etc.)\n`
-            errorMsg += `2. Have them send you a message first (then you can reply)\n`
-            errorMsg += `3. Try a different address that has XMTP\n\n`
+            errorMsg += `⚠️ Unable to verify XMTP identity for this address.\n\n`
+            errorMsg += `🔍 IMPORTANT: If you've chatted with this address before, please check your conversation list manually!\n`
+            errorMsg += `The conversation might exist but we couldn't find it automatically.\n\n`
+            errorMsg += `Why this might happen:\n`
+            errorMsg += `• The XMTP identity check can have false negatives (known issue)\n`
+            errorMsg += `• The conversation exists but doesn't have address info stored\n`
+            errorMsg += `• Temporary network/API issues\n\n`
+            errorMsg += `What to try:\n`
+            errorMsg += `1. ✅ Check your conversation list - scroll through and look for this address\n`
+            errorMsg += `2. If you find the conversation but it shows no address, you can manually map it:\n`
+            errorMsg += `   - Open browser console (F12)\n`
+            errorMsg += `   - Run: window.addXMTPMapping("conversation-id", "${inputAddress}")\n`
+            errorMsg += `   - Replace "conversation-id" with the actual conversation ID\n`
+            errorMsg += `3. If not found, try refreshing the page and checking again\n`
+            errorMsg += `4. Have them send you a message (then you can reply)\n`
+            errorMsg += `5. Check browser console (F12) - look for conversation IDs and addresses\n\n`
           } else {
             errorMsg += `⚠️ This address has XMTP, but we couldn't retrieve the inboxId.\n\n`
             errorMsg += `This might be a temporary issue. Try:\n`
-            errorMsg += `1. Refreshing the page and trying again\n`
-            errorMsg += `2. Checking your internet connection\n`
-            errorMsg += `3. Having them send you a message first\n\n`
+            errorMsg += `1. ✅ Check your conversation list first - you may already have this conversation\n`
+            errorMsg += `2. Refresh the page and try again\n`
+            errorMsg += `3. Check your internet connection\n`
+            errorMsg += `4. Have them send you a message first\n\n`
           }
           
-          errorMsg += `💡 Tip: Open browser console (F12) for detailed debugging information.`
+          errorMsg += '💡 Tip: Open browser console (F12) and look for conversation logs. You can also use window.inspectXMTPMappings() to see stored address mappings.'
           
           setError(errorMsg)
           setIsCreatingConversation(false)
