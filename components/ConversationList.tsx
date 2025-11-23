@@ -246,7 +246,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         
         if (!identity || !identity.walletAddress) {
           if (username.endsWith('.eth')) {
-            setError(`Could not resolve ENS name @${username}. Make sure the ENS name exists and is properly configured.`)
+            setError(`Could not resolve @${username}. Tried Farcaster username and ENS name, but neither was found.`)
           } else {
             setError(`Could not resolve Farcaster username @${username}. They may not have a Farcaster account or be in the directory.`)
           }

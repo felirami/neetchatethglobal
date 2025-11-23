@@ -36,39 +36,8 @@ export async function resolveMention(
 ): Promise<ResolvedIdentity | null> {
   const { useApiRoutes = false, neynarApiKey, ethRpcUrl } = options || {};
 
-  // 1. ENS – if ends with .eth, ONLY try ENS (no Farcaster fallback)
-  const isEns = username.endsWith('.eth');
-
-  if (isEns) {
-    let address: string | null = null;
-
-    if (useApiRoutes) {
-      try {
-        const res = await fetch(`/api/ens?name=${encodeURIComponent(username)}`);
-        if (res.ok) {
-          const data = await res.json();
-          address = data.address || null;
-        }
-      } catch (error) {
-        console.error('❌ Error calling ENS API route:', error);
-      }
-    } else {
-      address = await resolveEnsNameToAddress(username, ethRpcUrl);
-    }
-
-    if (address) {
-      return {
-        handle: username,
-        displayLabel: username,
-        walletAddress: address,
-        source: 'ens',
-      };
-    }
-    // If ENS lookup fails, return null (don't try Farcaster)
-    return null;
-  }
-
-  // 2. Farcaster (for plain usernames without .eth)
+  // 1. Farcaster first (for both plain usernames and username.eth)
+  // In Farcaster, someone can have "felirami.eth" as their username
   let fcUser: FarcasterUser | null = null;
 
   if (useApiRoutes) {
@@ -95,6 +64,37 @@ export async function resolveMention(
       source: 'farcaster',
       extra: { fid: fcUser.fid },
     };
+  }
+
+  // 2. ENS fallback (only if username ends with .eth and Farcaster didn't find it)
+  // If someone types @felirami.eth and it's not a Farcaster username, try ENS
+  const isEns = username.endsWith('.eth');
+  
+  if (isEns) {
+    let address: string | null = null;
+
+    if (useApiRoutes) {
+      try {
+        const res = await fetch(`/api/ens?name=${encodeURIComponent(username)}`);
+        if (res.ok) {
+          const data = await res.json();
+          address = data.address || null;
+        }
+      } catch (error) {
+        console.error('❌ Error calling ENS API route:', error);
+      }
+    } else {
+      address = await resolveEnsNameToAddress(username, ethRpcUrl);
+    }
+
+    if (address) {
+      return {
+        handle: username,
+        displayLabel: username,
+        walletAddress: address,
+        source: 'ens',
+      };
+    }
   }
 
   // 3. Local agent directory
