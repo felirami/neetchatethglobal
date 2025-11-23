@@ -92,13 +92,13 @@ export default function ChatPage() {
           </div>
 
           {/* Chat Window */}
-          <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${
+          <div className={`flex-1 flex flex-col min-w-0 min-h-0 ${
             selectedConversation ? 'flex' : 'hidden md:flex'
           }`}>
             {selectedConversation ? (
               <ChatWindow conversation={selectedConversation} />
             ) : (
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 min-h-0">
                 <div className="max-w-md mx-auto">
                   {/* Wallet Status Section - Scrollable */}
                   <div className="mb-6">
