@@ -24,7 +24,7 @@ export default function ChatPage() {
   
   // Wait for wagmi to finish hydrating before checking connection status
   // status can be: 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
-  const isWagmiReady = status !== 'reconnecting' // Allow checking once status is known
+  const isWagmiReady = status !== 'reconnecting' && status !== 'connecting'
 
   useEffect(() => {
     setMounted(true)
@@ -53,10 +53,12 @@ export default function ChatPage() {
 
   // Show loading/redirect message if not connected
   if (!isWalletConnected) {
+    const message = !isWagmiReady ? "Connecting wallet..." : "Redirecting..."
+
     return (
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
-          <p className="text-lg font-medium mb-2">Redirecting...</p>
+          <p className="text-lg font-medium mb-2">{message}</p>
           <p className="text-sm text-gray-500">Please connect your wallet</p>
         </div>
       </main>

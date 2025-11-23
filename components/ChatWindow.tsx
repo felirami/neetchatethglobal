@@ -198,15 +198,31 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
     setIsSending(true)
     setError(null)
     
-    // Get peer address for canMessage check
+    // Get peer address for canMessage check (informational only, not blocking)
     let checkPeerAddress = conversation.peerAddress || (conversation as any).peer?.address || (conversation as any).address
+    console.log('📤 Preparing to send message:', {
+      conversationId: conversation.id,
+      conversationPeerAddress: conversation.peerAddress,
+      conversationPeer: (conversation as any).peer?.address,
+      conversationAddress: (conversation as any).address,
+      checkPeerAddress: checkPeerAddress,
+    })
+    
     if (!checkPeerAddress && typeof window !== 'undefined' && conversation.id) {
       const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
       checkPeerAddress = addressMap[conversation.id]
+      console.log('💾 Restored peerAddress from localStorage:', {
+        conversationId: conversation.id,
+        restoredAddress: checkPeerAddress,
+        allMappings: addressMap,
+      })
     }
     
-    // Check if peer has XMTP identity before sending
-    // If canMessage is false, messages won't be delivered
+    console.log('📤 Final peer address for message send:', checkPeerAddress)
+    
+    // Check if peer has XMTP identity (informational only - don't block sending)
+    // Note: canMessage can sometimes return false negatives, so we proceed anyway
+    // The actual message send will fail gracefully if XMTP is not enabled
     try {
       if (client && checkPeerAddress && checkPeerAddress.startsWith('0x') && checkPeerAddress.length === 42) {
         const { Client } = await import('@xmtp/browser-sdk')
@@ -219,13 +235,14 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
           : (canMessageResult as any)?.[checkPeerAddress.toLowerCase()] === true
         
         if (!canMessage) {
-          setError(`⚠️ The recipient (${formatAddress(checkPeerAddress)}) doesn't have XMTP enabled. Messages will be queued but won't be delivered until they set up XMTP.`)
-          setIsSending(false)
-          return
+          console.warn(`⚠️ canMessage returned false for ${checkPeerAddress}, but proceeding with send anyway (canMessage can have false negatives)`)
+          // Don't block - just log a warning. The message send will handle errors gracefully.
+        } else {
+          console.log(`✅ canMessage returned true for ${checkPeerAddress}`)
         }
       }
     } catch (checkError) {
-      console.warn('Could not check canMessage before sending:', checkError)
+      console.warn('Could not check canMessage before sending (non-blocking):', checkError)
       // Continue anyway - the message might still go through
     }
     
@@ -243,6 +260,16 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
     setNewMessage('')
 
     try {
+      console.log('📤 Conversation details before send:', {
+        id: conversation.id,
+        topic: conversation.topic,
+        peerAddress: conversation.peerAddress,
+        peerInboxId: (conversation as any).peerInboxId,
+        hasSend: typeof conversation.send === 'function',
+        hasSendOptimistic: typeof conversation.sendOptimistic === 'function',
+        hasPublishMessages: typeof conversation.publishMessages === 'function',
+      })
+      
       if (typeof conversation.send !== 'function') {
         throw new Error('Conversation send method is not available')
       }
