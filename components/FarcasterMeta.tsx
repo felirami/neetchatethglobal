@@ -9,14 +9,14 @@ export function FarcasterMeta() {
     metaTag.name = 'fc:frame'
     metaTag.content = JSON.stringify({
       version: 'next',
-      imageUrl: 'https://neetchat3-dzotgquy7-feliramis-projects.vercel.app/og-image.png',
+      imageUrl: 'https://neetchat3.vercel.app/og-image.png',
       button: {
         title: '💬 Chat',
         action: {
           type: 'launch_miniapp',
           name: 'NeetChat',
-          url: 'https://neetchat3-dzotgquy7-feliramis-projects.vercel.app/chat',
-          splashImageUrl: 'https://neetchat3-dzotgquy7-feliramis-projects.vercel.app/logo.png',
+          url: 'https://neetchat3.vercel.app/chat',
+          splashImageUrl: 'https://neetchat3.vercel.app/logo.png',
           splashBackgroundColor: '#0ea5e9'
         }
       }
