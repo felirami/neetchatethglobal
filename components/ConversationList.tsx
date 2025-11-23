@@ -359,28 +359,9 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         }
       }
 
-      // Method 3: Try using getDmByInboxId with address as inboxId (might work in some cases)
-      // This is a workaround - normally we'd need the actual inboxId
-      if (!inboxId) {
-        console.log('Attempting workaround: trying address as inboxId...')
-        try {
-          // Some SDK versions might accept address directly
-          // This is a long shot but worth trying
-          const testDm = await client.conversations.getDmByInboxId(inputAddress)
-          if (testDm) {
-            console.log('✅ Found DM using address as inboxId!')
-            onSelectConversation(testDm)
-            setSearchAddress('')
-            setResolvedIdentity(null)
-            setPendingAddress(null)
-            setShowConfirmationModal(false)
-            setIsCreatingConversation(false)
-            return
-          }
-        } catch (err: any) {
-          console.log('getDmByInboxId with address failed (expected):', err?.message || err)
-        }
-      }
+      // Method 3: REMOVED - Don't use address as inboxId, it finds wrong conversations
+      // We need the actual inboxId to create/find the correct conversation
+      // The address is NOT the same as inboxId, so using getDmByInboxId(address) finds wrong conversations
 
       // Method 4: Try creating DM directly with address (some SDK versions might support this)
       if (!inboxId) {
