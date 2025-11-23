@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { FarcasterMeta } from '@/components/FarcasterMeta'
+import { MiniAppInit } from '@/components/MiniAppInit'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,8 +22,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <FarcasterMeta />
         <ErrorBoundary>
-          <Providers>{children}</Providers>
+          <Providers>
+            <MiniAppInit />
+            {children}
+          </Providers>
         </ErrorBoundary>
       </body>
     </html>

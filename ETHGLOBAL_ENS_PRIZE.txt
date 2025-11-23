@@ -1,0 +1,23 @@
+HOW ARE YOU USING THIS PROTOCOL/API:
+
+NeetChat integrates ENS (Ethereum Name Service) as a core identity resolution mechanism, enabling users to start conversations and mention others using human-readable .eth names instead of wallet addresses. We use Viem to resolve ENS names to Ethereum addresses, which are then used to create XMTP conversations. Our implementation includes a multi-protocol resolution pipeline (Farcaster → ENS → Directory → Fallback) that intelligently distinguishes between Farcaster usernames ending in .eth and pure ENS names. Users can type "vitalik.eth" or "@vitalik.eth" in the chat input, and our system resolves it to the corresponding wallet address for messaging. We've also created a server-side API route for ENS resolution to handle CORS issues and provide a robust fallback mechanism.
+
+LINK TO CODE:
+
+https://github.com/felirami/neetchatethglobal/blob/main/lib/identity/ens.ts#L26
+
+This file contains our core ENS resolution logic using Viem. Additional ENS usage can be found in:
+- lib/identity/resolve.ts - Multi-protocol resolution pipeline that includes ENS
+- app/api/ens/route.ts - Server-side API route for ENS resolution
+- components/ConversationList.tsx - Integration of ENS resolution into conversation creation flow
+
+EASE OF USE RATING:
+
+9/10
+
+ENS resolution via Viem is extremely straightforward and well-integrated. The API is simple (client.getEnsAddress) and works reliably. The main challenge was distinguishing between Farcaster usernames ending in .eth (like @username.eth) versus pure ENS names (username.eth), which we solved by checking the @ prefix. Viem's TypeScript types are excellent and the mainnet RPC requirement is well-documented. Overall, ENS is one of the easiest Web3 protocols to integrate.
+
+ADDITIONAL FEEDBACK:
+
+ENS is a critical piece of Web3 identity infrastructure and Viem makes it incredibly easy to integrate. The resolution is fast, reliable, and the API is intuitive. Our implementation demonstrates how ENS can be seamlessly integrated into messaging applications to improve UX - users don't need to remember or copy-paste long wallet addresses. The only minor improvement would be support for reverse resolution (address → ENS name) which would help display human-readable names in conversation lists. We've built a robust resolution pipeline that handles edge cases like distinguishing Farcaster usernames from ENS names, and our server-side API route ensures ENS resolution works even with browser CORS restrictions. ENS is essential for making Web3 messaging user-friendly and accessible.
+

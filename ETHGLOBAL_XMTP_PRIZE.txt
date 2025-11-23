@@ -1,0 +1,23 @@
+HOW ARE YOU USING THIS PROTOCOL/API:
+
+NeetChat is a comprehensive wallet-to-wallet messaging application built entirely on XMTP Browser SDK v5.1.0. We use XMTP as the core messaging protocol for end-to-end encrypted conversations, implementing the full messaging lifecycle including client initialization, conversation creation and management, message sending/receiving, real-time streaming, and cross-device synchronization. Our app demonstrates advanced XMTP V3/MLS protocol features including inboxId-based conversation matching, nanosecond timestamp handling, forward secrecy compliance, and automatic conversation identification. We've also integrated XMTP with Farcaster and ENS identity resolution, enabling users to mention others using @username or @name.eth directly in XMTP conversations.
+
+LINK TO CODE:
+
+https://github.com/felirami/neetchatethglobal/blob/main/contexts/XMTPContext.tsx#L125
+
+This file shows our XMTP client initialization and management. Additional XMTP usage can be found in:
+- components/ConversationList.tsx - Conversation creation and listing
+- components/ChatWindow.tsx - Message sending and receiving
+- app/api/xmtp/identity/route.ts - XMTP identity resolution API proxy
+
+EASE OF USE RATING:
+
+8/10
+
+The XMTP Browser SDK is well-documented and the API is intuitive for basic operations. However, we encountered some challenges with XMTP V3/MLS protocol nuances (missing senderAddress fields, nanosecond timestamps, inboxId-based identification) that required deep understanding of the protocol. The SDK's WASM-based architecture also required careful handling for Next.js SSR compatibility. Overall, once you understand the protocol architecture, the SDK is straightforward to use.
+
+ADDITIONAL FEEDBACK:
+
+The XMTP Browser SDK v5.1.0 is powerful and enables true decentralized messaging. We appreciate the comprehensive documentation (xmtpllms-full.txt) which helped us understand protocol details. The SDK handles encryption, key management, and network synchronization seamlessly. Our main suggestions would be: 1) More examples of handling XMTP V3/MLS edge cases (missing peerAddress, inboxId resolution failures), 2) Better TypeScript types for conversation objects (peerInboxId access patterns), 3) Clearer guidance on conversation matching strategies when findInboxIdByIdentifier fails. We've implemented several workarounds (localStorage mapping, automatic conversation identification) that could be helpful patterns for other developers. The SDK's forward secrecy and MLS protocol implementation is excellent - messages are truly secure and conversations sync reliably across devices.
+

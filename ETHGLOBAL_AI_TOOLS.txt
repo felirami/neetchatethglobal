@@ -1,0 +1,27 @@
+AI tools were extensively used throughout the development of NeetChat:
+
+**Cursor AI Code Editor**: The primary AI development tool used for this project. Cursor's AI assistant was used for:
+- Code generation and implementation of React components, TypeScript types, and API routes
+- Debugging TypeScript errors, XMTP SDK integration issues, and React hook dependencies
+- Refactoring code to improve structure and maintainability
+- Writing documentation and updating project status files
+- Understanding XMTP SDK v5.1.0 APIs and protocol nuances (referenced xmtpllms-full.txt documentation)
+- Implementing complex features like conversation matching, identity resolution pipelines, and localStorage mapping systems
+- Fixing build errors and deployment issues for Vercel
+
+**AI-Assisted Development Workflow**: 
+- Used Cursor's AI to maintain context across multiple development sessions through the .cursorrules file
+- AI helped implement features like inboxId-based conversation matching, automatic conversation identification, and debug utilities
+- AI assisted in resolving XMTP V3/MLS protocol challenges (nanosecond timestamps, missing senderAddress fields, forward secrecy)
+- Used AI to create comprehensive documentation (PROJECT_STATUS.md, DEVELOPMENT_LOG.md) to maintain continuity between development sessions
+
+**Specific Use Cases**:
+- Implementing the mention system with Farcaster/ENS resolution pipeline
+- Creating server-side API proxies to bypass CORS restrictions
+- Debugging and fixing TypeScript compilation errors for production builds
+- Writing ETHGlobal submission documentation and technical descriptions
+- Implementing localStorage mapping system for conversation address restoration
+- Creating debug utilities and error handling patterns
+
+The project follows an AI agent protocol (defined in .cursorrules) where AI assistants read project status and development logs before making changes, ensuring continuity and proper documentation throughout the development process.
+

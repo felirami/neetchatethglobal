@@ -1,0 +1,13 @@
+{
+  "miniapp": {
+    "version": "1",
+    "name": "NeetChat",
+    "iconUrl": "https://neetchat3-dzotgquy7-feliramis-projects.vercel.app/logo.png",
+    "homeUrl": "https://neetchat3-dzotgquy7-feliramis-projects.vercel.app/chat",
+    "imageUrl": "https://neetchat3-dzotgquy7-feliramis-projects.vercel.app/og-image.png",
+    "buttonTitle": "💬 Chat",
+    "splashImageUrl": "https://neetchat3-dzotgquy7-feliramis-projects.vercel.app/logo.png",
+    "splashBackgroundColor": "#0ea5e9"
+  }
+}
+

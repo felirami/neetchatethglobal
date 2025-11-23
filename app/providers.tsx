@@ -2,8 +2,9 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider, createConfig, http } from 'wagmi'
-import { mainnet, sepolia } from 'wagmi/chains'
+import { mainnet, sepolia, base } from 'wagmi/chains'
 import { injected, metaMask, walletConnect } from '@wagmi/connectors'
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector'
 import { XMTPProvider } from '@/contexts/XMTPContext'
 import { TestWalletProvider } from '@/contexts/TestWalletContext'
 import { IdentityProvider } from '@/contexts/IdentityContext'
@@ -12,8 +13,10 @@ const queryClient = new QueryClient()
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || ''
 
-// Build connectors array - only include WalletConnect if projectId is provided
+// Build connectors array - Farcaster Mini App connector first (for Farcaster users)
+// Then fallback to other connectors
 const connectors = [
+  farcasterMiniApp(), // Farcaster Mini App wallet connector
   injected({ shimDisconnect: true }),
   metaMask(),
 ]
@@ -26,9 +29,10 @@ if (projectId) {
 }
 
 const config = createConfig({
-  chains: [mainnet, sepolia],
+  chains: [base, mainnet, sepolia], // Base first for Farcaster Mini Apps
   connectors,
   transports: {
+    [base.id]: http(),
     [mainnet.id]: http(),
     [sepolia.id]: http(),
   },
