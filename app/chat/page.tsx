@@ -57,15 +57,15 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white dark:bg-gray-900">
-      <div className="container-mobile mx-auto h-screen flex flex-col">
-        {/* Header */}
-        <header className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+    <main className="fixed inset-0 bg-white dark:bg-gray-900 flex flex-col overflow-hidden">
+      <div className="w-full h-full flex flex-col">
+        {/* Header - Fixed at top */}
+        <header className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 z-10">
           <div className="flex items-center justify-between">
             {selectedConversation && (
               <button
                 onClick={() => setSelectedConversation(null)}
-                className="md:hidden mr-2 text-gray-600 dark:text-gray-400"
+                className="md:hidden mr-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
               >
                 ← Back
               </button>
@@ -73,14 +73,16 @@ export default function ChatPage() {
             <h1 className="text-xl font-bold text-gray-900 dark:text-white flex-1">
               NeetChat
             </h1>
-            <WalletConnect />
+            <div className="flex-shrink-0">
+              <WalletConnect />
+            </div>
           </div>
         </header>
 
-        {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* Main Content - Scrollable area */}
+        <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Sidebar - Conversation List */}
-          <div className={`w-full md:w-80 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col ${
+          <div className={`w-full md:w-80 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col min-w-0 ${
             selectedConversation ? 'hidden md:flex' : 'flex'
           }`}>
             <ConversationList
@@ -90,16 +92,21 @@ export default function ChatPage() {
           </div>
 
           {/* Chat Window */}
-          <div className={`flex-1 flex flex-col min-w-0 ${
+          <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${
             selectedConversation ? 'flex' : 'hidden md:flex'
           }`}>
             {selectedConversation ? (
               <ChatWindow conversation={selectedConversation} />
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                <div className="text-center">
+              <div className="flex-1 flex items-center justify-center text-gray-500 overflow-y-auto p-4">
+                <div className="text-center max-w-md">
+                  <div className="mb-4">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </div>
                   <p className="text-lg font-medium mb-2">Select a conversation</p>
-                  <p className="text-sm">Choose a conversation from the list to start chatting</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Choose a conversation from the list to start chatting</p>
                 </div>
               </div>
             )}
