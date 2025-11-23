@@ -6,6 +6,14 @@ const nextConfig = {
     // your project has type errors.
     ignoreBuildErrors: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/.well-known/oembed.json',
+        destination: '/api/.well-known/oembed',
+      },
+    ]
+  },
   webpack: (config, { isServer }) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,

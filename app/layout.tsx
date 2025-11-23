@@ -37,11 +37,21 @@ export const metadata: Metadata = {
     images: [`${baseUrl}/og-image.svg`],
   },
   other: {
-    'fc:frame': 'vNext',
-    'fc:frame:image': `${baseUrl}/og-image.svg`,
-    'fc:frame:button:1': '💬 Chat',
-    'fc:frame:button:1:action': 'launch_miniapp',
-    'fc:frame:button:1:target': `${baseUrl}/chat`,
+    // Farcaster frame meta tag as JSON string (required format)
+    'fc:frame': JSON.stringify({
+      version: 'next',
+      imageUrl: `${baseUrl}/og-image.svg`,
+      button: {
+        title: '💬 Chat',
+        action: {
+          type: 'launch_miniapp',
+          name: 'NeetChat',
+          url: `${baseUrl}/chat`,
+          splashImageUrl: `${baseUrl}/logo.svg`,
+          splashBackgroundColor: '#0ea5e9',
+        },
+      },
+    }),
   },
 }
 
@@ -53,28 +63,34 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* Inject Farcaster frame meta tags immediately for crawlers */}
+        {/* Inject Farcaster frame meta tag immediately for crawlers */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 if (typeof document !== 'undefined' && document.head) {
                   const baseUrl = 'https://neetchat3.vercel.app';
-                  const metaTags = [
-                    { name: 'fc:frame', content: 'vNext' },
-                    { name: 'fc:frame:image', content: baseUrl + '/og-image.svg' },
-                    { name: 'fc:frame:button:1', content: '💬 Chat' },
-                    { name: 'fc:frame:button:1:action', content: 'launch_miniapp' },
-                    { name: 'fc:frame:button:1:target', content: baseUrl + '/chat' }
-                  ];
-                  metaTags.forEach(function(tag) {
-                    if (!document.querySelector('meta[name="' + tag.name + '"]')) {
-                      const meta = document.createElement('meta');
-                      meta.name = tag.name;
-                      meta.content = tag.content;
-                      document.head.appendChild(meta);
+                  const frameMeta = {
+                    version: 'next',
+                    imageUrl: baseUrl + '/og-image.svg',
+                    button: {
+                      title: '💬 Chat',
+                      action: {
+                        type: 'launch_miniapp',
+                        name: 'NeetChat',
+                        url: baseUrl + '/chat',
+                        splashImageUrl: baseUrl + '/logo.svg',
+                        splashBackgroundColor: '#0ea5e9'
+                      }
                     }
-                  });
+                  };
+                  const existingTag = document.querySelector('meta[name="fc:frame"]');
+                  if (!existingTag) {
+                    const meta = document.createElement('meta');
+                    meta.name = 'fc:frame';
+                    meta.content = JSON.stringify(frameMeta);
+                    document.head.appendChild(meta);
+                  }
                 }
               })();
             `,

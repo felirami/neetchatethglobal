@@ -4,31 +4,39 @@ import { useEffect } from 'react'
 
 export function FarcasterMeta() {
   useEffect(() => {
-    // Ensure Farcaster frame meta tags are present (backup for client-side)
-    // These should already be in the HTML head via Next.js metadata, but we ensure they're there
+    // Ensure Farcaster frame meta tag is present (backup for client-side)
+    // The meta tag should be a JSON string, not individual tags
     const baseUrl = 'https://neetchat3.vercel.app'
     
-    const metaTags = [
-      { name: 'fc:frame', content: 'vNext' },
-      { name: 'fc:frame:image', content: `${baseUrl}/og-image.svg` },
-      { name: 'fc:frame:button:1', content: '💬 Chat' },
-      { name: 'fc:frame:button:1:action', content: 'launch_miniapp' },
-      { name: 'fc:frame:button:1:target', content: `${baseUrl}/chat` },
-    ]
+    const frameMeta = {
+      version: 'next',
+      imageUrl: `${baseUrl}/og-image.svg`,
+      button: {
+        title: '💬 Chat',
+        action: {
+          type: 'launch_miniapp',
+          name: 'NeetChat',
+          url: `${baseUrl}/chat`,
+          splashImageUrl: `${baseUrl}/logo.svg`,
+          splashBackgroundColor: '#0ea5e9',
+        },
+      },
+    }
     
-    metaTags.forEach(({ name, content }) => {
-      // Check if tag already exists
-      const existingTag = document.querySelector(`meta[name="${name}"]`)
-      if (!existingTag) {
-        const metaTag = document.createElement('meta')
-        metaTag.name = name
-        metaTag.content = content
-        document.head.appendChild(metaTag)
-      } else if (existingTag.getAttribute('content') !== content) {
-        // Update if content differs
-        existingTag.setAttribute('content', content)
+    const existingTag = document.querySelector('meta[name="fc:frame"]')
+    if (!existingTag) {
+      const metaTag = document.createElement('meta')
+      metaTag.name = 'fc:frame'
+      metaTag.content = JSON.stringify(frameMeta)
+      document.head.appendChild(metaTag)
+    } else {
+      // Update if content differs
+      const currentContent = existingTag.getAttribute('content')
+      const newContent = JSON.stringify(frameMeta)
+      if (currentContent !== newContent) {
+        existingTag.setAttribute('content', newContent)
       }
-    })
+    }
   }, [])
 
   return null
