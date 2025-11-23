@@ -13,6 +13,18 @@ interface ChatWindowProps {
   conversation: Conversation | null
 }
 
+// Helper to identify the "success" error from XMTP
+const isSyncSuccessError = (error: any): boolean => {
+  const msg = typeof error === 'string' ? error : error?.message || ''
+  // Matches patterns like:
+  // "synced 1 messages, 0 failed 1 succeeded"
+  // "synced 2 messages, 0 failed 2 succeeded"
+  return typeof msg === 'string' && 
+    msg.includes('synced') && 
+    msg.includes('succeeded') && 
+    (msg.includes('0 failed') || (msg.includes('failed') && !msg.includes('failed 0')))
+}
+
 export function ChatWindow({ conversation }: ChatWindowProps) {
   const { client } = useXMTP()
   const { address } = useAccount()
@@ -52,7 +64,11 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
           console.warn('⚠️ Conversation sync method not available')
         }
       } catch (syncError: any) {
-        console.warn('⚠️ Error syncing conversation (will try to load from local database):', syncError?.message)
+        if (isSyncSuccessError(syncError)) {
+          console.log('✅ Conversation synced (ignoring sync status exception)')
+        } else {
+          console.warn('⚠️ Error syncing conversation (will try to load from local database):', syncError?.message || syncError)
+        }
       }
 
       // Then, load messages from the local database
@@ -97,7 +113,13 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                          return prev
                      })
                 }
-            } catch (e) { console.warn('Background sync error', e) }
+            } catch (e: any) {
+                // Ignore "synced X messages" error which is actually success
+                if (isSyncSuccessError(e)) {
+                    return
+                }
+                console.warn('Background sync error', e)
+            }
         }
         backgroundSync()
     }, 10000)
@@ -251,22 +273,25 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
         // Don't remove optimistic message - it might still be processing
       }
     } catch (error: any) {
+      // Don't remove optimistic message on error if it's just a sync reporting error
+      // Filter out "synced X messages" error which is actually success
+      if (isSyncSuccessError(error)) {
+        console.log('✅ Message sent successfully (ignoring sync status exception):', error?.message || error)
+        // Treat as success
+        // Don't remove optimistic message
+        setNewMessage('') 
+        setIsSending(false)
+        return
+      }
+
       console.error('❌ Error sending message:', error)
-      console.error('Error details:', {
-        message: error?.message,
-        stack: error?.stack,
-        conversation: {
-          id: conversation?.id,
-          hasSend: typeof conversation?.send === 'function',
-          hasUpdateConsent: typeof conversation?.updateConsentState === 'function',
-        }
-      })
       
-      // Remove optimistic message on error
+      // Remove optimistic message on real error
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id))
       setNewMessage(messageText) // Restore message text
       
       let errorMessage = 'Failed to send message.'
+
       if (error?.message) {
         if (error.message.includes('not a function')) {
           errorMessage = 'Conversation error. Please try selecting the conversation again.'
@@ -351,6 +376,17 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
     conversation.topic || 
     (typeof peerInboxIdValue === 'string' ? peerInboxIdValue : '') ||
     ''
+  
+  // Restore peerAddress from localStorage if missing
+  if (!peerAddress && typeof window !== 'undefined' && conversation.id) {
+    const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+    if (addressMap[conversation.id]) {
+      peerAddress = addressMap[conversation.id]
+      // Also set it on the conversation object for this session
+      (conversation as any).peerAddress = peerAddress
+      console.log('💾 Restored address from localStorage for chat:', conversation.id, '→', peerAddress)
+    }
+  }
   
   // For DM conversations, if we have peerInboxId but no address, try to get it from the client
   // But for now, we'll use what we have or show a fallback

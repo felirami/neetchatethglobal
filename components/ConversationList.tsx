@@ -113,6 +113,17 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       const uniqueConversations = Array.from(conversationMap.values())
       console.log('📋 Total loaded:', uniqueConversations.length, 'conversations from local database')
       
+      // Restore peerAddress from localStorage if missing
+      if (typeof window !== 'undefined') {
+        const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+        uniqueConversations.forEach((conv: any) => {
+          if (!conv.peerAddress && addressMap[conv.id]) {
+            conv.peerAddress = addressMap[conv.id]
+            console.log('💾 Restored address from localStorage:', conv.id, '→', addressMap[conv.id])
+          }
+        })
+      }
+      
       // Log all conversation addresses for debugging
       uniqueConversations.forEach((conv: any, index: number) => {
         const peerAddr = conv.peerAddress || conv.peer?.address || conv.address || '(no address)'
@@ -590,6 +601,15 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       // Since new DM conversations might not have peerAddress immediately
       if (!conversation.peerAddress) {
         (conversation as any).peerAddress = inputAddress
+      }
+      
+      // Also store in localStorage for persistence across page reloads
+      // Map conversation ID → wallet address
+      if (typeof window !== 'undefined' && conversation.id) {
+        const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+        addressMap[conversation.id] = inputAddress
+        localStorage.setItem('xmtp_conversation_addresses', JSON.stringify(addressMap))
+        console.log('💾 Stored address mapping:', conversation.id, '→', inputAddress)
       }
 
       // Refresh conversation list so the new DM appears immediately
