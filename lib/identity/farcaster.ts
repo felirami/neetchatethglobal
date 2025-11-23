@@ -33,7 +33,7 @@ export async function resolveFarcasterUserByUsername(
 
   try {
     const res = await fetch(
-      `https://api.neynar.com/v2/farcaster/user-by-username?username=${encodeURIComponent(username)}`,
+      `https://api.neynar.com/v2/farcaster/user/by_username?username=${encodeURIComponent(username)}`,
       {
         headers: {
           accept: 'application/json',
@@ -52,11 +52,16 @@ export async function resolveFarcasterUserByUsername(
     }
 
     const data = await res.json();
-    if (!data?.user) {
+    
+    // Neynar API returns user directly, not wrapped in { user: ... }
+    // Check if it's the user object directly or wrapped
+    const user = data.user || (data.username ? data : null);
+    
+    if (!user) {
       return null;
     }
 
-    return data.user as FarcasterUser;
+    return user as FarcasterUser;
   } catch (error) {
     console.error('❌ Error resolving Farcaster user:', error);
     return null;
