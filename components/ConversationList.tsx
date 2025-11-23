@@ -114,9 +114,17 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
   const createConversationWithAddress = async (address: string) => {
     console.log('📍 Creating conversation with address:', address)
     
+    if (!address) {
+      console.error('❌ No address provided to createConversationWithAddress')
+      setError('No address provided. Please try again.')
+      setShowConfirmationModal(false)
+      setIsCreatingConversation(false)
+      return
+    }
+    
     setIsCreatingConversation(true)
     setError(null)
-    setShowConfirmationModal(false) // Close modal
+    // Don't close modal immediately - wait until conversation is created or error occurs
     
     try {
       if (!client) {
@@ -124,6 +132,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       }
 
       const inputAddress = address.toLowerCase()
+      console.log('📍 Processing address for conversation creation:', inputAddress)
       
       console.log('📍 Processing address:', inputAddress)
 
@@ -354,11 +363,13 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           // This is a long shot but worth trying
           const testDm = await client.conversations.getDmByInboxId(inputAddress)
           if (testDm) {
-            console.log('Found DM using address as inboxId!')
+            console.log('✅ Found DM using address as inboxId!')
             onSelectConversation(testDm)
             setSearchAddress('')
-            setIsCreatingConversation(false)
             setResolvedIdentity(null)
+            setPendingAddress(null)
+            setShowConfirmationModal(false)
+            setIsCreatingConversation(false)
             return
           }
         } catch (err: any) {
@@ -373,11 +384,13 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           // Try newDm with address directly - this might work in some SDK versions
           const testConversation = await client.conversations.newDm(inputAddress as any)
           if (testConversation) {
-            console.log('Successfully created DM with address directly!')
+            console.log('✅ Successfully created DM with address directly!')
             onSelectConversation(testConversation)
             setSearchAddress('')
-            setIsCreatingConversation(false)
             setResolvedIdentity(null)
+            setPendingAddress(null)
+            setShowConfirmationModal(false)
+            setIsCreatingConversation(false)
             return
           }
         } catch (err: any) {
@@ -424,11 +437,13 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           for (const conv of allConversations) {
             const peerAddr = conv.peerAddress || conv.peer?.address || conv.address
             if (peerAddr?.toLowerCase() === inputAddress.toLowerCase()) {
-              console.log('Found existing conversation with this address:', conv)
+              console.log('✅ Found existing conversation with this address:', conv)
               onSelectConversation(conv)
               setSearchAddress('')
-              setIsCreatingConversation(false)
               setResolvedIdentity(null)
+              setPendingAddress(null)
+              setShowConfirmationModal(false)
+              setIsCreatingConversation(false)
               return
             }
           }
@@ -539,7 +554,10 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       setSearchAddress('')
       setError(null) // Clear error on success
       setResolvedIdentity(null) // Clear resolved identity
+      setPendingAddress(null)
+      setShowConfirmationModal(false) // Close modal on success
       setIsCreatingConversation(false)
+      console.log('✅ Conversation created successfully:', conversation.id)
     } catch (err: any) {
       console.error('Error creating conversation:', err)
       console.error('Client object:', client)
@@ -572,6 +590,9 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         return errorMessage
       })
       setIsCreatingConversation(false)
+      setShowConfirmationModal(false) // Close modal on error so user can see error message
+      // Keep resolvedIdentity and pendingAddress so user can retry if needed
+      console.error('❌ Failed to create conversation:', err?.message)
     }
   }
 
