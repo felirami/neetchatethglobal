@@ -231,11 +231,26 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       // Method 1: Check if DM already exists (this will give us the inboxId if found)
       try {
         const existingDms = await client.conversations.listDms()
-        console.log('Existing DMs:', existingDms.length)
+        console.log('🔍 Checking existing DMs for address:', inputAddress)
+        console.log('   Total existing DMs:', existingDms.length)
+        
+        // Log all existing DMs for debugging
+        existingDms.forEach((dm: any, index: number) => {
+          const peerAddr = dm.peerAddress || dm.peer?.address || dm.address
+          console.log(`   DM ${index + 1}:`, {
+            id: dm.id,
+            peerAddress: peerAddr || '(no address)',
+            matches: peerAddr?.toLowerCase() === inputAddress.toLowerCase()
+          })
+        })
         
         const existingDm = existingDms.find((dm: any) => {
           const peerAddr = dm.peerAddress || dm.peer?.address || dm.address
-          const matches = peerAddr?.toLowerCase() === inputAddress.toLowerCase()
+          if (!peerAddr) {
+            // Skip DMs without addresses - they can't match
+            return false
+          }
+          const matches = peerAddr.toLowerCase() === inputAddress.toLowerCase()
           if (matches) {
             console.log('✅ Found existing DM with matching address:', {
               dmId: dm.id,
@@ -247,10 +262,10 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         })
         
         if (existingDm) {
-          // Verify the address matches before using it
+          // Double-verify the address matches before using it
           const peerAddr = existingDm.peerAddress || existingDm.peer?.address || existingDm.address
-          if (peerAddr?.toLowerCase() === inputAddress.toLowerCase()) {
-            console.log('✅ Using existing DM conversation with correct address')
+          if (peerAddr && peerAddr.toLowerCase() === inputAddress.toLowerCase()) {
+            console.log('✅ Using existing DM conversation with correct address:', existingDm.id)
             onSelectConversation(existingDm)
             setSearchAddress('')
             setResolvedIdentity(null)
@@ -259,8 +274,15 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
             setIsCreatingConversation(false)
             return
           } else {
-            console.warn('⚠️ Found DM but address mismatch, will create new one')
+            console.warn('⚠️ Found DM but address mismatch:', {
+              foundAddress: peerAddr || '(none)',
+              targetAddress: inputAddress,
+              dmId: existingDm.id
+            })
+            console.warn('   Will create new conversation instead')
           }
+        } else {
+          console.log('ℹ️ No existing DM found with matching address, will create new one')
         }
         
         // If no existing DM, try to extract inboxId from existing conversations
@@ -426,34 +448,53 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         console.error('==============================')
         
         // Try one more thing - check all conversations (not just DMs)
-        try {
-          console.log('Attempting to find conversation from all conversations...')
-          const allConversations = await client.conversations.list()
-          console.log('Found all conversations:', allConversations.length)
-          
-          // Look for any conversation with this EXACT address
-          for (const conv of allConversations) {
-            const peerAddr = conv.peerAddress || conv.peer?.address || conv.address
-            if (peerAddr?.toLowerCase() === inputAddress.toLowerCase()) {
-              console.log('✅ Found existing conversation with matching address:', {
-                convId: conv.id,
-                peerAddress: peerAddr,
-                targetAddress: inputAddress
+        // Only do this if we still don't have an inboxId and need to find existing conversation
+        if (!inboxId) {
+          try {
+            console.log('🔍 Checking all conversations (not just DMs) for address:', inputAddress)
+            const allConversations = await client.conversations.list()
+            console.log('   Total conversations:', allConversations.length)
+            
+            // Log all conversations for debugging
+            allConversations.forEach((conv: any, index: number) => {
+              const peerAddr = conv.peerAddress || conv.peer?.address || conv.address
+              console.log(`   Conversation ${index + 1}:`, {
+                id: conv.id,
+                peerAddress: peerAddr || '(no address)',
+                matches: peerAddr?.toLowerCase() === inputAddress.toLowerCase()
               })
-              // Double-check the address matches before using it
-              if (peerAddr?.toLowerCase() === inputAddress.toLowerCase()) {
-                onSelectConversation(conv)
-                setSearchAddress('')
-                setResolvedIdentity(null)
-                setPendingAddress(null)
-                setShowConfirmationModal(false)
-                setIsCreatingConversation(false)
-                return
+            })
+            
+            // Look for any conversation with this EXACT address
+            for (const conv of allConversations) {
+              const peerAddr = conv.peerAddress || conv.peer?.address || conv.address
+              if (!peerAddr) {
+                // Skip conversations without addresses
+                continue
+              }
+              if (peerAddr.toLowerCase() === inputAddress.toLowerCase()) {
+                console.log('✅ Found existing conversation with matching address:', {
+                  convId: conv.id,
+                  peerAddress: peerAddr,
+                  targetAddress: inputAddress
+                })
+                // Double-check the address matches before using it
+                if (peerAddr.toLowerCase() === inputAddress.toLowerCase()) {
+                  console.log('✅ Using existing conversation with correct address:', conv.id)
+                  onSelectConversation(conv)
+                  setSearchAddress('')
+                  setResolvedIdentity(null)
+                  setPendingAddress(null)
+                  setShowConfirmationModal(false)
+                  setIsCreatingConversation(false)
+                  return
+                }
               }
             }
+            console.log('ℹ️ No existing conversation found with matching address')
+          } catch (err: any) {
+            console.error('Error checking all conversations:', err?.message || err)
           }
-        } catch (err: any) {
-          console.error('Error checking all conversations:', err?.message || err)
         }
         
         // Try querying XMTP network API directly as last resort
