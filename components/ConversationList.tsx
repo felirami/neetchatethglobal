@@ -601,20 +601,31 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
     }
   }
 
-  const handleNewConversation = async () => {
-    console.log('🚀 handleNewConversation called', { client: !!client, searchAddress, trimmed: searchAddress.trim() })
+  const handleNewConversation = async (inputValue?: string) => {
+    // Use provided inputValue or fallback to searchAddress state
+    const input = inputValue || searchAddress
+    const trimmedInput = input.trim()
+    
+    console.log('🚀 handleNewConversation called', { 
+      client: !!client, 
+      searchAddress, 
+      inputValue,
+      trimmedInput,
+      hasClient: !!client,
+      hasAddress: !!trimmedInput
+    })
     
     // Clear any previous errors and resolved identity
     setError(null)
     setResolvedIdentity(null)
     
-    if (!client || !searchAddress.trim()) {
-      console.log('❌ Early return:', { hasClient: !!client, hasAddress: !!searchAddress.trim() })
+    if (!client || !trimmedInput) {
+      console.log('❌ Early return:', { hasClient: !!client, hasAddress: !!trimmedInput, searchAddress, inputValue })
       return
     }
 
     try {
-      let address = searchAddress.trim()
+      let address = trimmedInput
       const inputLower = address.toLowerCase()
       
       // Check if input is a mention (starts with @)
@@ -749,14 +760,15 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !isResolving && !e.shiftKey) {
                   e.preventDefault()
-                  handleNewConversation()
+                  const inputValue = (e.target as HTMLInputElement).value
+                  handleNewConversation(inputValue)
                 }
               }}
               className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               disabled={isResolving}
             />
             <button
-              onClick={handleNewConversation}
+              onClick={() => handleNewConversation()}
               disabled={!searchAddress.trim() || isResolving}
               className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
