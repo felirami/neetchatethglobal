@@ -268,6 +268,37 @@ This document tracks the development progress of NeetChat, showing the evolution
 
 ---
 
+### Phase 10: Final UI Polish & Protocol Tuning (Week 4)
+
+**Goal**: Resolve remaining UI inconsistencies and optimize for XMTP V3/MLS protocol nuances
+
+#### Completed:
+- ✅ Fixed timestamp display by handling `sentAtNs` (BigInt nanosecond string) format
+- ✅ Resolved message alignment issues by implementing `inboxId` comparison (critical for MLS V3)
+- ✅ Implemented relaxed conversation filtering to show new groups without peer addresses
+- ✅ Added system message filtering to hide group update JSON blobs from chat view
+- ✅ Created "Force Sync" button in conversation list for manual network sync
+- ✅ Added "Refresh" button in chat window for manual message retrieval
+- ✅ Added "Copy Address" button with feedback in chat header
+- ✅ Documented expected MLS forward secrecy behavior (missing history on new installs)
+
+**Key Files Modified**:
+- `components/ChatWindow.tsx` - UI rendering and logic updates
+- `components/ConversationList.tsx` - Filtering logic updates
+- `docs/PROJECT_STATUS.md` - Status updates
+
+**Challenges Overcome**:
+- Debugged specific XMTP V3 message structure (`sentAtNs` vs `sentAt`)
+- Solved streaming issues where local `topic` was undefined by relying on `conversationId`
+- Fixed "Unsupported message type" errors by filtering non-text content
+
+**Technical Decisions**:
+- Prioritized `inboxId` over `senderAddress` for more reliable sender identification in V3
+- Implemented fallback display names for group chats
+- Added background periodic sync to supplement message streaming
+
+---
+
 ## Key Technical Achievements
 
 ### 1. XMTP SDK Integration
@@ -350,6 +381,59 @@ This document tracks the development progress of NeetChat, showing the evolution
    - Monitoring and analytics
    - Error tracking
    - Performance metrics
+
+---
+
+### Phase 11: XMTP Mentions Implementation (ETHGlobal 2025)
+
+**Goal**: Implement @username mentions with Farcaster, ENS, and agent directory support
+
+#### Completed:
+- ✅ Created mention parser to detect @username patterns in message text
+- ✅ Implemented Farcaster resolver using Neynar API (username → wallet addresses)
+- ✅ Implemented ENS resolver using viem (`.eth` names → addresses)
+- ✅ Created local agent directory for AI agents and system users
+- ✅ Built resolution pipeline combining all resolvers (Farcaster → ENS → Directory → Fallback)
+- ✅ Created identity cache/store using React Context API
+- ✅ Built React component for rendering mentions in messages with clickable UI
+- ✅ Integrated mentions into ChatWindow component
+- ✅ Created API routes for secure server-side resolution (/api/farcaster, /api/ens)
+
+**Key Files Created**:
+- `lib/mentions.ts` - Mention parser
+- `lib/identity/farcaster.ts` - Farcaster resolver
+- `lib/identity/ens.ts` - ENS resolver
+- `lib/identity/agents.ts` - Agent directory
+- `lib/identity/resolve.ts` - Resolution pipeline
+- `contexts/IdentityContext.tsx` - Identity cache/store
+- `components/MessageWithMentions.tsx` - Mention rendering component
+- `app/api/farcaster/route.ts` - Farcaster API route
+- `app/api/ens/route.ts` - ENS API route
+
+**Key Files Modified**:
+- `components/ChatWindow.tsx` - Integrated mention rendering
+- `app/providers.tsx` - Added IdentityProvider
+
+**Challenges Overcome**:
+- Implemented proper resolution order (ENS first for speed, then Farcaster, then directory)
+- Created efficient caching system to avoid redundant API calls
+- Built flexible resolver that supports both direct calls and API routes
+- Integrated seamlessly into existing message rendering without breaking changes
+
+**Technical Decisions**:
+- Used viem for ENS resolution (already in project, no new dependency)
+- Created API routes for secure server-side resolution (keeps API keys safe)
+- Used React Context for caching (consistent with existing architecture)
+- Implemented automatic mention resolution on message render
+- Added proper error handling and fallbacks at each resolution step
+
+**Features**:
+- Users can mention others using @username (Farcaster), @name.eth (ENS), or @agent (directory)
+- Mentions are automatically resolved and displayed with proper styling
+- Resolved mentions are clickable and show wallet addresses on hover
+- Unresolved mentions are shown in gray/italic
+- Efficient caching prevents redundant API calls
+- Supports batch resolution for performance
 
 ---
 

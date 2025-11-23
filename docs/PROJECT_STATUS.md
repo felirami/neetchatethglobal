@@ -65,6 +65,8 @@
 - ✅ Message alignment using `inboxId` comparison (XMTP V3/MLS compatible)
 - ✅ System message filtering (hides group update JSON blobs)
 - ✅ "Refresh" button for manual message retrieval
+- ✅ **NEW**: @username mentions with Farcaster, ENS, and agent directory support
+- ✅ **NEW**: Clickable mentions with identity resolution and wallet address display
 
 #### DebugPanel Component (Development Only)
 - ✅ XMTP debug information display
@@ -137,7 +139,26 @@
 - ✅ Forked conversation detection
 - ✅ Extensive console logging
 
-### 6. Documentation & Repository Management
+### 6. Mentions & Identity Resolution
+
+#### Mention System
+- ✅ Mention parser to detect @username patterns in text
+- ✅ Farcaster resolver using Neynar API (maps @username → wallet addresses)
+- ✅ ENS resolver using viem (maps @name.eth → addresses)
+- ✅ Local agent directory for AI agents and system users
+- ✅ Resolution pipeline (Farcaster → ENS → Directory → Fallback)
+- ✅ Identity cache/store using React Context API
+- ✅ React component for rendering mentions with clickable UI
+- ✅ API routes for secure server-side resolution (/api/farcaster, /api/ens)
+
+#### Features
+- Users can mention others using @username (Farcaster), @name.eth (ENS), or @agent (directory)
+- Mentions are automatically resolved and displayed with proper styling
+- Resolved mentions are clickable and show wallet addresses on hover
+- Efficient caching prevents redundant API calls
+- Supports batch resolution for performance
+
+### 7. Documentation & Repository Management
 
 #### Documentation
 - ✅ Comprehensive README.md with setup instructions
