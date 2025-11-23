@@ -20,7 +20,7 @@ const connectors = [
 
 // Only add WalletConnect if projectId is configured
 if (projectId) {
-  connectors.push(walletConnect({ projectId }))
+  connectors.push(walletConnect({ projectId }) as any)
 } else {
   console.warn('WalletConnect Project ID not configured. Get one from https://cloud.walletconnect.com/')
 }

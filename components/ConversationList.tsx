@@ -595,6 +595,22 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
               }
             }
             
+            // Get targetInboxId in this scope (may have been set earlier)
+            // Note: targetInboxId is defined in outer scope, but may not be accessible here
+            // Try to get inboxId again if we don't have it
+            let currentTargetInboxId: string | null = null
+            try {
+              const inboxIdResult = await client.findInboxIdByIdentifier({
+                identifier: inputAddress,
+                identifierKind: 'Ethereum' as const
+              })
+              if (inboxIdResult) {
+                currentTargetInboxId = inboxIdResult
+              }
+            } catch (err: any) {
+              // Ignore errors, just use null
+            }
+            
             // Log all conversations for debugging - including peerInboxId
             allConversations.forEach((conv: any, index: number) => {
               // Get peerInboxId from conversation (might be a function or property)
@@ -609,7 +625,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
                 peerAddress: peerAddr || '(no address)',
                 peerInboxId: peerInboxIdValue || '(none)',
                 matches: peerAddr?.toLowerCase() === inputAddress.toLowerCase(),
-                matchesInboxId: targetInboxId && peerInboxIdValue && peerInboxIdValue === targetInboxId,
+                matchesInboxId: currentTargetInboxId && peerInboxIdValue && peerInboxIdValue === currentTargetInboxId,
                 isLocalStorageMatch: localStorageMatch && conv.id === localStorageMatch.id
               })
             })
@@ -654,11 +670,11 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
               const peerAddr = conv.peerAddress || conv.peer?.address || conv.address || convMappedAddress
               
               // Match by inboxId if we have it (preferred method for V3/MLS)
-              if (targetInboxId && peerInboxIdValue && peerInboxIdValue === targetInboxId) {
+              if (currentTargetInboxId && peerInboxIdValue && peerInboxIdValue === currentTargetInboxId) {
                 console.log('✅ Found match by peerInboxId in all conversations!', {
                   convId: conv.id,
                   peerInboxId: peerInboxIdValue,
-                  targetInboxId: targetInboxId
+                  targetInboxId: currentTargetInboxId
                 })
                 // Restore the peerAddress on the conversation object if we have it
                 if (!conv.peerAddress && inputAddress) {

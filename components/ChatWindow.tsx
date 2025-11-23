@@ -381,13 +381,13 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
       
       // Handle BigInt (nanoseconds)
       if (typeof timestamp === 'bigint') {
-        date = new Date(Number(timestamp / 1000000n))
+        date = new Date(Number(timestamp / BigInt(1000000)))
       } 
       // Handle sentAtNs (string representation of nanoseconds)
       else if (typeof timestamp === 'string' && /^\d+$/.test(timestamp) && timestamp.length > 13) {
         // Convert string nanoseconds to milliseconds
         const ns = BigInt(timestamp)
-        date = new Date(Number(ns / 1000000n))
+        date = new Date(Number(ns / BigInt(1000000)))
       }
       else {
         date = new Date(timestamp)

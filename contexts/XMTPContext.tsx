@@ -122,7 +122,7 @@ export function XMTPProvider({ children }: { children: ReactNode }) {
             await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
           }
           
-          xmtpClient = await Client.create(signer, {
+          xmtpClient = await Client.create(signer as any, {
             env: env,
           })
           console.log('✅ XMTP Client created successfully')
