@@ -168,5 +168,5 @@ For XMTP-specific issues:
 ---
 
 **Version**: 0.1.0  
-**Last Updated**: January 2025  
-**Status**: Active Development
+**Last Updated**: November 2025  
+**Status**: Hackathon Submission

@@ -243,7 +243,7 @@ This document tracks the development progress of NeetChat, showing the evolution
 
 **Version**: 0.1.0  
 **Status**: Functional with known sync delays  
-**Last Updated**: January 2025
+**Last Updated**: November 2025
 
 ### Working Features
 - ✅ Wallet connection (all major providers)

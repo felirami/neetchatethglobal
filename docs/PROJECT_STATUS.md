@@ -379,8 +379,9 @@ For XMTP-specific issues, refer to:
 
 ---
 
-**Last Updated**: January 2025
+**Last Updated**: November 2025
 **Project Status**: Functional with known sync delays
 **XMTP SDK Version**: 5.1.0
 **Next.js Version**: 14.x
+**Application Version**: 0.1.0 (Hackathon Submission)
 
