@@ -535,6 +535,8 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           
           setError(errorMsg)
           setIsCreatingConversation(false)
+          // Don't close modal on error - keep it open so user can see the error
+          // setShowConfirmationModal(false) // REMOVED - keep modal open to show error
           throw new Error(`Unable to get inboxId for ${inputAddress}. canMessage: ${canMessage}. See console for full details.`)
         }
       }
@@ -595,8 +597,8 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         return errorMessage
       })
       setIsCreatingConversation(false)
-      setShowConfirmationModal(false) // Close modal on error so user can see error message
-      // Keep resolvedIdentity and pendingAddress so user can retry if needed
+      // DON'T close modal on error - keep it open so user can see the error message in the modal
+      // The error will be displayed in the IdentityConfirmationModal component
       console.error('❌ Failed to create conversation:', err?.message)
     }
   }
@@ -740,8 +742,10 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
             setShowConfirmationModal(false)
             setResolvedIdentity(null)
             setPendingAddress(null)
+            setError(null) // Clear error when canceling
           }}
           isCreating={isCreatingConversation}
+          error={error} // Show error in modal
         />
       )}
 

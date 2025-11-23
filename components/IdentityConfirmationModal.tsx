@@ -8,6 +8,7 @@ interface IdentityConfirmationModalProps {
   onConfirm: () => void
   onCancel: () => void
   isCreating?: boolean
+  error?: string | null
 }
 
 export function IdentityConfirmationModal({
@@ -15,6 +16,7 @@ export function IdentityConfirmationModal({
   onConfirm,
   onCancel,
   isCreating = false,
+  error = null,
 }: IdentityConfirmationModalProps) {
   const getSourceLabel = (source: string) => {
     switch (source) {
@@ -104,6 +106,18 @@ export function IdentityConfirmationModal({
             </div>
           )}
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-start gap-2">
+              <span className="text-red-600 dark:text-red-400">⚠️</span>
+              <div className="flex-1 text-sm text-red-700 dark:text-red-300 whitespace-pre-line max-h-48 overflow-y-auto break-words min-w-0">
+                {error}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-3">
           <button
