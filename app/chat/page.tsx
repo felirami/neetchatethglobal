@@ -15,21 +15,28 @@ type Conversation = any
 export default function ChatPage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const { isConnected } = useAccount()
+  const { isConnected, status } = useAccount()
   const { isTestWallet } = useTestWallet()
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   
   // Consider connected if either regular wallet or test wallet is active
   const isWalletConnected = isConnected || isTestWallet
+  
+  // Wait for wagmi to finish hydrating before checking connection status
+  // status can be: 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
+  const isWagmiReady = status !== 'reconnecting' // Allow checking once status is known
 
   useEffect(() => {
     setMounted(true)
-    
-    // Redirect to home if wallet not connected
-    if (mounted && !isWalletConnected) {
+  }, [])
+
+  useEffect(() => {
+    // Only redirect if we're mounted, wagmi is ready, and wallet is definitely not connected
+    // Don't redirect during initial hydration
+    if (mounted && isWagmiReady && !isWalletConnected) {
       router.push('/')
     }
-  }, [mounted, isWalletConnected, router])
+  }, [mounted, isWagmiReady, isWalletConnected, router])
 
   // Prevent hydration mismatch
   if (!mounted) {
