@@ -39,8 +39,21 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
     setIsLoading(true)
     try {
       console.log('🔄 Syncing conversations from network...')
-      await client.syncAll()
-      console.log('✅ Conversations synced from network')
+      // Try syncAll first, then fallback to sync
+      try {
+        if (typeof client.conversations?.syncAll === 'function') {
+          await client.conversations.syncAll(['allowed', 'unknown'])
+          console.log('✅ Conversations synced from network (syncAll)')
+        } else if (typeof client.conversations?.sync === 'function') {
+          await client.conversations.sync()
+          console.log('✅ Conversations synced from network (sync)')
+        } else {
+          console.warn('⚠️ No sync method available, loading from local database only')
+        }
+      } catch (syncError: any) {
+        console.warn('⚠️ Error during sync (will load from local database):', syncError?.message)
+        // Continue to load from local database even if sync fails
+      }
 
       // List all DMs (direct messages)
       const dms = await client.conversations.listDms()
