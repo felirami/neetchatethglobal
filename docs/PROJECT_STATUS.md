@@ -49,6 +49,9 @@
 - ✅ Error handling with in-app error banners
 - ✅ Peer address extraction from various conversation properties
 - ✅ Conversation filtering and display
+- ✅ Relaxed filtering to show conversations without peer addresses (for new groups)
+- ✅ "Force Sync" button for manual network sync
+- ✅ Fallback display names for groups without clear peer address
 
 #### ChatWindow Component
 - ✅ Message display for selected conversation
@@ -57,8 +60,11 @@
 - ✅ Optimistic UI updates for sent messages
 - ✅ Message status indicators (sending, sent, failed)
 - ✅ Error handling with in-app error banners
-- ✅ Peer address display
-- ✅ Message timestamp formatting
+- ✅ Peer address display with "Copy Address" button
+- ✅ Message timestamp formatting (handles `sentAtNs` BigInt nanoseconds)
+- ✅ Message alignment using `inboxId` comparison (XMTP V3/MLS compatible)
+- ✅ System message filtering (hides group update JSON blobs)
+- ✅ "Refresh" button for manual message retrieval
 
 #### DebugPanel Component (Development Only)
 - ✅ XMTP debug information display
@@ -225,10 +231,13 @@ from origin 'http://localhost:3000' has been blocked by CORS policy
 
 **Issue**: Messages were missing timestamps, had incorrect alignment (sender vs receiver), and showed raw JSON for system messages.
 
-**Status**: **Resolved**.
-- **Timestamps**: Fixed by handling `sentAtNs` (BigInt nanoseconds) and converting to milliseconds for display.
-- **Alignment**: Fixed by fetching the user's `inboxId` and comparing it with `message.senderInboxId` (standard for XMTP v3/MLS), instead of relying solely on wallet addresses.
-- **System Messages**: Filtered out non-text messages (e.g., group membership updates) to prevent "Unsupported message type" errors.
+**Status**: **Resolved** (Phase 10).
+- **Timestamps**: Fixed by handling `sentAtNs` (BigInt nanosecond string) and converting to milliseconds for display. XMTP V3/MLS uses nanosecond precision timestamps.
+- **Alignment**: Fixed by fetching the user's `inboxId` and comparing it with `message.senderInboxId` (standard for XMTP v3/MLS), instead of relying solely on wallet addresses. This is critical because `senderAddress` is often missing in V3 messages.
+- **System Messages**: Filtered out non-text messages (e.g., group membership updates) to prevent "Unsupported message type" errors and hide JSON blobs from chat view.
+- **Additional UI Improvements**: Added "Copy Address" button with feedback, "Refresh" button for manual message retrieval, and improved error handling.
+
+**Key Files Modified**: `components/ChatWindow.tsx`, `components/ConversationList.tsx`
 
 ## Technical Implementation Details
 
