@@ -262,8 +262,6 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
             console.warn('⚠️ Found DM but address mismatch, will create new one')
           }
         }
-          return
-        }
         
         // If no existing DM, try to extract inboxId from existing conversations
         // Sometimes we can get inboxId from the conversation object
