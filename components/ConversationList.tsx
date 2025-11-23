@@ -728,19 +728,19 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         {error && (
-          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-h-48 overflow-y-auto">
             <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-red-600 dark:text-red-400 font-semibold text-sm">⚠️ Error</span>
                 </div>
-                <div className="text-sm text-red-700 dark:text-red-300 whitespace-pre-line">
+                <div className="text-sm text-red-700 dark:text-red-300 whitespace-pre-line break-words">
                   {error}
                 </div>
               </div>
               <button
                 onClick={() => setError(null)}
-                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 text-lg font-bold leading-none"
+                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 text-lg font-bold leading-none flex-shrink-0"
                 aria-label="Dismiss error"
               >
                 ×
