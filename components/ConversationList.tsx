@@ -756,7 +756,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Enter address (0x...) or mention (@username, @name.eth, @agent)"
+              placeholder="Enter address (0x...) or mention (@username for Farcaster, @name.eth for ENS)"
               value={searchAddress}
               onChange={(e) => {
                 setSearchAddress(e.target.value)
