@@ -36,22 +36,25 @@ export function IdentityProvider({ children }: { children: ReactNode }) {
 
   // Resolve a single mention (with caching)
   const resolveMentionCached = useCallback(async (username: string, options?: { isMention?: boolean }): Promise<ResolvedIdentity | null> => {
+    const isMention = options?.isMention ?? true
     const normalizedHandle = username.toLowerCase()
+    // Include isMention in cache key to distinguish between mention and ENS lookups
+    // e.g., "felirami.eth:mention" vs "felirami.eth:ens"
+    const cacheKey = isMention ? `${normalizedHandle}:mention` : `${normalizedHandle}:ens`
     
     // Check cache first
-    const cached = identityCache.get(normalizedHandle)
+    const cached = identityCache.get(cacheKey)
     if (cached !== undefined) {
       return cached
     }
 
     // Resolve using API routes (client-side)
-    // isMention defaults to true for mentions
-    const identity = await resolveMention(username, { useApiRoutes: true, isMention: options?.isMention ?? true })
+    const identity = await resolveMention(username, { useApiRoutes: true, isMention })
 
-    // Update cache
+    // Update cache with the specific cache key
     setIdentityCache((prev) => {
       const next = new Map(prev)
-      next.set(normalizedHandle, identity)
+      next.set(cacheKey, identity)
       return next
     })
 
