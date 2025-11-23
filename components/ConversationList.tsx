@@ -239,14 +239,14 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         const username = mentions[0].username
         console.log('🔍 Resolving mention:', username)
         
-        // Resolve the mention
-        const identity = await resolveMentionCached(username)
+        // Resolve the mention (isMention=true means .eth endings are Farcaster usernames, not ENS)
+        const identity = await resolveMentionCached(username, { isMention: true })
         
         setIsResolving(false)
         
         if (!identity || !identity.walletAddress) {
           if (username.endsWith('.eth')) {
-            setError(`Could not resolve @${username}. Tried Farcaster username and ENS name, but neither was found.`)
+            setError(`Could not resolve Farcaster username @${username}. They may not have a Farcaster account with this username.`)
           } else {
             setError(`Could not resolve Farcaster username @${username}. They may not have a Farcaster account or be in the directory.`)
           }
@@ -263,12 +263,36 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         address = identity.walletAddress.toLowerCase()
         console.log('✅ Resolved mention:', { username, address, source: identity.source })
       } else {
-        // Not a mention, validate as Ethereum address
+        // Not a mention - could be ENS name (username.eth) or Ethereum address
         address = inputLower
         
-        if (!address.startsWith('0x') || address.length !== 42) {
+        // Check if it's an ENS name (ends with .eth but no @)
+        if (address.endsWith('.eth') && !address.startsWith('@')) {
+          setIsResolving(true)
+          setError(null)
+          
+          // Resolve ENS (isMention=false means this is an ENS lookup, not Farcaster)
+          const identity = await resolveMentionCached(address, { isMention: false })
+          
+          setIsResolving(false)
+          
+          if (!identity || !identity.walletAddress) {
+            setError(`Could not resolve ENS name ${address}. Make sure the ENS name exists and is properly configured.`)
+            return
+          }
+          
+          // Show resolved identity
+          setResolvedIdentity({
+            displayLabel: identity.displayLabel,
+            address: identity.walletAddress,
+            source: identity.source,
+          })
+          
+          address = identity.walletAddress.toLowerCase()
+          console.log('✅ Resolved ENS:', { ens: address, address: identity.walletAddress })
+        } else if (!address.startsWith('0x') || address.length !== 42) {
           console.log('❌ Invalid address format:', { startsWith0x: address.startsWith('0x'), length: address.length })
-          setError('Please enter a valid Ethereum address (must start with 0x and be 42 characters) or a mention like @username, @name.eth, or @agent')
+          setError('Please enter a valid Ethereum address (0x...), ENS name (name.eth), or mention (@username or @username.eth)')
           return
         }
       }

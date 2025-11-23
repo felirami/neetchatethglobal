@@ -35,7 +35,7 @@ export function IdentityProvider({ children }: { children: ReactNode }) {
   }, [identityCache])
 
   // Resolve a single mention (with caching)
-  const resolveMentionCached = useCallback(async (username: string): Promise<ResolvedIdentity | null> => {
+  const resolveMentionCached = useCallback(async (username: string, options?: { isMention?: boolean }): Promise<ResolvedIdentity | null> => {
     const normalizedHandle = username.toLowerCase()
     
     // Check cache first
@@ -45,7 +45,8 @@ export function IdentityProvider({ children }: { children: ReactNode }) {
     }
 
     // Resolve using API routes (client-side)
-    const identity = await resolveMention(username, { useApiRoutes: true })
+    // isMention defaults to true for mentions
+    const identity = await resolveMention(username, { useApiRoutes: true, isMention: options?.isMention ?? true })
 
     // Update cache
     setIdentityCache((prev) => {

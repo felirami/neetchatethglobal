@@ -20,10 +20,12 @@ export interface ResolvedIdentity {
 
 /**
  * Resolves a single mention username to an identity
- * Tries in order: ENS → Farcaster → Local Directory → Fallback
+ * For mentions (@username.eth), only checks Farcaster (not ENS)
+ * For direct ENS lookups (username.eth without @), checks ENS
  * 
  * @param username - The username to resolve (without @)
  * @param options - Optional configuration
+ * @param isMention - If true, this came from a mention (@username), so .eth endings are Farcaster usernames, not ENS
  * @returns ResolvedIdentity or null if not found
  */
 export async function resolveMention(
@@ -32,12 +34,13 @@ export async function resolveMention(
     useApiRoutes?: boolean; // If true, uses API routes instead of direct calls
     neynarApiKey?: string;  // Optional API key for Farcaster
     ethRpcUrl?: string;      // Optional RPC URL for ENS
+    isMention?: boolean;     // If true, username came from @mention (so .eth is Farcaster, not ENS)
   }
 ): Promise<ResolvedIdentity | null> {
-  const { useApiRoutes = false, neynarApiKey, ethRpcUrl } = options || {};
+  const { useApiRoutes = false, neynarApiKey, ethRpcUrl, isMention = true } = options || {};
 
-  // 1. Farcaster first (for both plain usernames and username.eth)
-  // In Farcaster, someone can have "felirami.eth" as their username
+  // 1. Farcaster (for mentions, including @username.eth)
+  // If it's a mention (@username.eth), the .eth is part of the Farcaster username, not ENS
   let fcUser: FarcasterUser | null = null;
 
   if (useApiRoutes) {
@@ -66,11 +69,10 @@ export async function resolveMention(
     };
   }
 
-  // 2. ENS fallback (only if username ends with .eth and Farcaster didn't find it)
-  // If someone types @felirami.eth and it's not a Farcaster username, try ENS
-  const isEns = username.endsWith('.eth');
-  
-  if (isEns) {
+  // 2. ENS (only if NOT a mention and ends with .eth)
+  // If someone types "felirami.eth" (without @), it's an ENS lookup
+  // If someone types "@felirami.eth" (with @), it's a Farcaster username, not ENS
+  if (!isMention && username.endsWith('.eth')) {
     let address: string | null = null;
 
     if (useApiRoutes) {
