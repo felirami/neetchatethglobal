@@ -789,7 +789,12 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
                 setError(null) // Clear error when user starts typing
                 setResolvedIdentity(null) // Clear resolved identity when typing
               }}
-              onKeyPress={(e) => e.key === 'Enter' && !isResolving && handleNewConversation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isResolving && !e.shiftKey) {
+                  e.preventDefault()
+                  handleNewConversation()
+                }
+              }}
               className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               disabled={isResolving}
             />
