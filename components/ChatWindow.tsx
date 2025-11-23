@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAccount } from 'wagmi'
 import { useXMTP } from '@/contexts/XMTPContext'
+import { MessageWithMentions } from '@/components/MessageWithMentions'
 
 // Define types locally to avoid build-time imports
 type Conversation = any
@@ -461,9 +462,24 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                     }`}
                   >
                     <div className="text-sm break-words">
-                      {typeof message.content === 'string' 
-                        ? message.content 
-                        : message.content.text}
+                      {typeof message.content === 'string' ? (
+                        <MessageWithMentions 
+                          text={message.content} 
+                          isFromMe={isFromMe}
+                          onMentionClick={(identity, handle) => {
+                            // Optional: Open profile modal, start DM, etc.
+                            console.log('Mention clicked:', { identity, handle })
+                          }}
+                        />
+                      ) : (
+                        <MessageWithMentions 
+                          text={message.content.text || String(message.content)} 
+                          isFromMe={isFromMe}
+                          onMentionClick={(identity, handle) => {
+                            console.log('Mention clicked:', { identity, handle })
+                          }}
+                        />
+                      )}
                     </div>
                     <div className="flex items-center justify-end gap-1 mt-1">
                       <span className={`text-xs ${isFromMe ? 'text-white/70' : 'text-gray-500'}`}>
