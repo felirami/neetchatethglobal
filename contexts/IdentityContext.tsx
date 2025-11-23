@@ -9,7 +9,7 @@ interface IdentityContextType {
   identityCache: Map<string, ResolvedIdentity | null>
   
   // Resolve a single mention
-  resolveMention: (username: string) => Promise<ResolvedIdentity | null>
+  resolveMention: (username: string, options?: { isMention?: boolean }) => Promise<ResolvedIdentity | null>
   
   // Resolve all mentions in text
   resolveMentionsInText: (text: string) => Promise<Array<{ mention: MentionToken; identity: ResolvedIdentity | null }>>
