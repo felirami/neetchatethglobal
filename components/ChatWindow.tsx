@@ -177,10 +177,12 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
     setError(null)
     
     // Optimistically add message to UI immediately
+    // Set both senderAddress and senderInboxId so isFromMe check works immediately
     const optimisticMessage = {
       id: `temp-${Date.now()}`,
       content: messageText,
       senderAddress: address || '',
+      senderInboxId: myInboxId || undefined, // Set inboxId so isFromMe check works immediately
       sentAt: new Date(),
       isOptimistic: true,
     }
