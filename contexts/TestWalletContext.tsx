@@ -21,10 +21,40 @@ interface TestWalletContextType {
 const TestWalletContext = createContext<TestWalletContextType | undefined>(undefined)
 
 export function TestWalletProvider({ children }: { children: ReactNode }) {
-  const [isTestWallet, setIsTestWallet] = useState(false)
+  const [isTestWallet, setIsTestWallet] = useState(() => {
+    // Check local storage on initial load
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      return localStorage.getItem('isTestWallet') === 'true'
+    }
+    return false
+  })
   const [testWalletClient, setTestWalletClient] = useState<WalletClient | null>(null)
   const [testWalletAddress, setTestWalletAddress] = useState<string | null>(null)
   const [testAccount, setTestAccount] = useState<ReturnType<typeof privateKeyToAccount> | null>(null)
+
+  // Initialize account if isTestWallet is true on mount
+  useState(() => {
+    if (isTestWallet && !testWalletClient) {
+      try {
+        const account = privateKeyToAccount(TEST_PRIVATE_KEY)
+        const walletClient = createWalletClient({
+          account,
+          chain: mainnet,
+          transport: http(),
+        })
+        setTestWalletClient(walletClient)
+        setTestAccount(account)
+        setTestWalletAddress(account.address)
+        console.log('✅ Test wallet restored from storage:', account.address)
+      } catch (error) {
+        console.error('Failed to restore test wallet:', error)
+        setIsTestWallet(false)
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('isTestWallet')
+        }
+      }
+    }
+  })
 
   const activateTestWallet = useCallback(() => {
     if (process.env.NODE_ENV !== 'development') {
@@ -44,6 +74,7 @@ export function TestWalletProvider({ children }: { children: ReactNode }) {
       setTestAccount(account)
       setTestWalletAddress(account.address)
       setIsTestWallet(true)
+      localStorage.setItem('isTestWallet', 'true')
       
       console.log('✅ Test wallet activated:', account.address)
       console.log('⚠️ WARNING: This is a test wallet. Do NOT use with real funds!')
@@ -57,6 +88,7 @@ export function TestWalletProvider({ children }: { children: ReactNode }) {
     setTestAccount(null)
     setTestWalletAddress(null)
     setIsTestWallet(false)
+    localStorage.removeItem('isTestWallet')
     console.log('Test wallet deactivated')
   }, [])
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from 'react'
 import { useAccount, useSignMessage } from 'wagmi'
 import { toBytes } from 'viem'
 import { useTestWallet } from './TestWalletContext'
@@ -34,6 +34,10 @@ export function XMTPProvider({ children }: { children: ReactNode }) {
   const { address, isConnected } = useAccount()
   const { signMessageAsync } = useSignMessage()
   const { isTestWallet, testWalletAddress, signMessageWithTestWallet } = useTestWallet()
+  
+  // Refs to track initialization status across renders/effects
+  const isInitializing = useRef(false)
+  const isUnmounting = useRef(false)
 
   // Use test wallet address if test wallet is active, otherwise use connected wallet
   const activeAddress = isTestWallet ? testWalletAddress : address
@@ -78,11 +82,18 @@ export function XMTPProvider({ children }: { children: ReactNode }) {
   }, [activeAddress, isTestWallet, signMessageAsync, signMessageWithTestWallet])
 
   const initializeClient = useCallback(async () => {
+    // Prevent duplicate initializations
+    if (isInitializing.current) {
+      console.log('⚠️ Client initialization already in progress')
+      return
+    }
+
     if (!activeIsConnected || !activeAddress) {
       setError('Please connect your wallet first')
       return
     }
 
+    isInitializing.current = true
     setIsLoading(true)
     setError(null)
 
@@ -90,9 +101,56 @@ export function XMTPProvider({ children }: { children: ReactNode }) {
       // Dynamically import XMTP SDK to avoid SSR issues
       const { Client } = await import('@xmtp/browser-sdk')
       const signer = createSigner()
-      const xmtpClient = await Client.create(signer, {
-        env: process.env.NEXT_PUBLIC_XMTP_ENV || 'production',
-      })
+      const env = process.env.NEXT_PUBLIC_XMTP_ENV || 'production'
+      
+      // Explicitly set DB path to ensure persistence and avoid creating new installations on error fallback
+      // Format: xmtp-{env}-{address}.db3
+      // This is crucial for ensuring we use the same DB even if previous locks cause issues
+      // Note: We removed the explicit dbPath for now as it might cause conflicts if SDK defaults change
+      // Instead, we rely on the retry loop below to handle locking issues
+      
+      let xmtpClient = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      // Retry loop for client creation to handle database locking issues on reload
+      while (!xmtpClient && retryCount < maxRetries) {
+        try {
+          if (retryCount > 0) {
+            console.log(`🔄 Retrying client initialization (attempt ${retryCount + 1}/${maxRetries})...`)
+            // Wait a bit before retrying to allow locks to release
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          }
+          
+          xmtpClient = await Client.create(signer, {
+            env: env,
+          })
+          console.log('✅ XMTP Client created successfully')
+        } catch (createError: any) {
+          console.warn(`⚠️ Client creation attempt ${retryCount + 1} failed:`, createError?.message)
+          
+          // Check for DB lock errors
+          if (createError?.message?.includes('Access Handles cannot be created') || 
+              createError?.message?.includes('NoModificationAllowedError') ||
+              createError?.message?.includes('database is locked')) {
+            console.log('🔒 Database lock detected, waiting for release...')
+          } else if (createError?.message?.includes('installations') && createError?.message?.includes('already registered')) {
+            // If it's an installation limit error, don't retry creation, throw immediately to handle revocation
+            throw createError
+          }
+          
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            console.error('❌ Max retries reached for client initialization')
+            throw createError
+          }
+        }
+      }
+      
+      if (isUnmounting.current) {
+        console.log('🛑 Component unmounted during initialization, aborting')
+        return
+      }
       
       // Perform initial sync to fetch conversations and messages from the network
       // This ensures the local database is populated with existing conversations
@@ -112,7 +170,9 @@ export function XMTPProvider({ children }: { children: ReactNode }) {
         // Don't fail client initialization if sync fails - it will retry later
       }
       
-      setClient(xmtpClient)
+      if (!isUnmounting.current) {
+        setClient(xmtpClient)
+      }
     } catch (err: any) {
       console.error('Error initializing XMTP client:', err)
       
@@ -138,6 +198,7 @@ export function XMTPProvider({ children }: { children: ReactNode }) {
               `Or use a different wallet address for testing.`
             setError(errorMessage)
             setIsLoading(false)
+            isInitializing.current = false
             return
           }
           
@@ -207,6 +268,7 @@ export function XMTPProvider({ children }: { children: ReactNode }) {
                     console.log('✅ Successfully revoked old installations')
                     // Reset revocation flag for retry
                     setRevocationAttempted(false)
+                    isInitializing.current = false // Allow re-initialization
                     // Wait a bit longer for revocation to propagate, then retry
                     setTimeout(() => {
                       console.log('🔄 Retrying XMTP client initialization after revocation...')
@@ -241,13 +303,22 @@ export function XMTPProvider({ children }: { children: ReactNode }) {
       
       setError(errorMessage)
     } finally {
+      isInitializing.current = false
       setIsLoading(false)
     }
   }, [activeIsConnected, activeAddress, createSigner])
 
   useEffect(() => {
-    if (activeIsConnected && activeAddress && !client && !isLoading) {
+    isUnmounting.current = false;
+    
+    if (activeIsConnected && activeAddress && !client && !isLoading && !isInitializing.current) {
       initializeClient()
+    }
+    
+    return () => {
+      isUnmounting.current = true;
+      // Note: XMTP Client doesn't have a synchronous destroy method exposed easily in this version
+      // but we set the ref to prevent state updates after unmount
     }
   }, [activeIsConnected, activeAddress, client, isLoading, initializeClient])
 
@@ -265,4 +336,3 @@ export function useXMTP() {
   }
   return context
 }
-
