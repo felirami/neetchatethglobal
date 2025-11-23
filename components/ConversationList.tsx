@@ -7,6 +7,18 @@ import { resolveMention, ResolvedIdentity } from '@/lib/identity/resolve'
 import { extractMentions } from '@/lib/mentions'
 import { IdentityConfirmationModal } from '@/components/IdentityConfirmationModal'
 
+// Helper to identify the "success" error from XMTP
+const isSyncSuccessError = (error: any): boolean => {
+  const msg = typeof error === 'string' ? error : error?.message || ''
+  // Matches patterns like:
+  // "synced 1 messages, 0 failed 1 succeeded"
+  // "synced 2 messages, 0 failed 2 succeeded"
+  return typeof msg === 'string' && 
+    msg.includes('synced') && 
+    msg.includes('succeeded') && 
+    (msg.includes('0 failed') || (msg.includes('failed') && !msg.includes('failed 0')))
+}
+
 export interface Conversation {
   id: string
   peerAddress?: string
@@ -39,6 +51,12 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
     setIsLoading(true)
     try {
       console.log('🔄 Syncing conversations from network...')
+      
+      // Log installation ID for debugging persistence
+      if (client.installationId) {
+        console.log('📱 Current Installation ID:', client.installationId)
+      }
+
       // Try syncAll first, then fallback to sync
       try {
         if (typeof client.conversations?.syncAll === 'function') {
@@ -60,8 +78,20 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       console.log('📋 Found', dms.length, 'DMs (all consent states)')
 
       // Also try list() to get all conversations
-      const allConversations = await client.conversations.list()
+      let allConversations = await client.conversations.list()
       console.log('📋 Found', allConversations.length, 'total conversations (all consent states)')
+
+      // Retry listing if empty, just in case sync is still committing to DB
+      if (dms.length === 0 && allConversations.length === 0) {
+        console.log('Empty list, waiting 1s and retrying list()...')
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        const dmsRetry = await client.conversations.listDms()
+        const allRetry = await client.conversations.list()
+        console.log('📋 Retry found', dmsRetry.length, 'DMs and', allRetry.length, 'total')
+        
+        if (dmsRetry.length > 0) dms.push(...dmsRetry)
+        if (allRetry.length > 0) allConversations = allRetry
+      }
 
       // Combine and deduplicate by ID
       const conversationMap = new Map<string, Conversation>()
@@ -82,10 +112,27 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
 
       const uniqueConversations = Array.from(conversationMap.values())
       console.log('📋 Total loaded:', uniqueConversations.length, 'conversations from local database')
+      
+      // Log all conversation addresses for debugging
+      uniqueConversations.forEach((conv: any, index: number) => {
+        const peerAddr = conv.peerAddress || conv.peer?.address || conv.address || '(no address)'
+        console.log(`   Conversation ${index + 1}:`, {
+          id: conv.id,
+          peerAddress: peerAddr,
+          topic: conv.topic || '(no topic)'
+        })
+      })
 
       setConversations(uniqueConversations)
     } catch (err: any) {
       console.error('Error refreshing conversations:', err)
+      
+      // Ignore "synced 1 messages, 0 failed 1 succeeded" error which is actually success
+      if (isSyncSuccessError(err)) {
+        console.log('Ignoring sync success message treated as error:', err?.message || err)
+        return
+      }
+      
       setError(`Failed to load conversations: ${err?.message || 'Unknown error'}`)
     } finally {
       setIsLoading(false)
@@ -148,16 +195,19 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
 
       // Check if the address has XMTP before creating conversation
       // Note: canMessage can sometimes return false negatives, so we'll try to proceed anyway
-      const { Client } = await import('@xmtp/browser-sdk')
+      const { Client, IdentifierKind } = await import('@xmtp/browser-sdk')
       
       let canMessage = false
       let canMessageDebugInfo: any = null
       
+      const targetIdentifier = {
+        identifier: inputAddress,
+        identifierKind: IdentifierKind?.Ethereum ?? 'Ethereum',
+      }
+
       try {
         console.log('🔍 Checking canMessage for address:', inputAddress)
-        const canMessageResult = await Client.canMessage([
-          { identifier: inputAddress, identifierKind: 'Ethereum' }
-        ])
+        const canMessageResult = await Client.canMessage([targetIdentifier])
         
         // Log full response for debugging
         console.log('📦 canMessage result:', canMessageResult)
@@ -237,11 +287,20 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         // Log all existing DMs for debugging
         existingDms.forEach((dm: any, index: number) => {
           const peerAddr = dm.peerAddress || dm.peer?.address || dm.address
-          console.log(`   DM ${index + 1}:`, {
-            id: dm.id,
-            peerAddress: peerAddr || '(no address)',
-            matches: peerAddr?.toLowerCase() === inputAddress.toLowerCase()
-          })
+          // Debug the full object structure to see where address might be hiding
+          if (!peerAddr) {
+             console.log(`   DM ${index + 1} (No peerAddress found):`, {
+                 id: dm.id,
+                 keys: Object.keys(dm),
+                 topic: dm.topic
+             })
+          } else {
+              console.log(`   DM ${index + 1}:`, {
+                id: dm.id,
+                peerAddress: peerAddr,
+                matches: peerAddr?.toLowerCase() === inputAddress.toLowerCase()
+              })
+          }
         })
         
         const existingDm = existingDms.find((dm: any) => {
@@ -296,83 +355,27 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         console.warn('Error checking existing DMs:', err?.message || err)
       }
 
-      // Method 2: Try getInboxIdByIdentities (plural) - Browser SDK v5.1.0
-      // According to XMTP docs, Browser SDK uses getInboxIdByIdentities (plural)
-      // WASM methods aren't enumerable, so we MUST call directly without typeof checks
+      // Method 2: Try findInboxIdByIdentifier (Browser SDK v5.1.0)
       if (!inboxId) {
         try {
-          console.log('🔍 Method 2: Attempting getInboxIdByIdentities (plural)...')
-          console.log('   Address:', inputAddress)
-          console.log('   Client type:', typeof client)
-          console.log('   Client has getInboxIdByIdentities:', 'getInboxIdByIdentities' in client)
-          
-          // Call directly - WASM methods exist but aren't enumerable
-          const result = await client.getInboxIdByIdentities([
-            { identifier: inputAddress, identifierKind: 'Ethereum' }
-          ])
-          
-          console.log('📦 getInboxIdByIdentities result:', result)
-          console.log('📦 Result type:', typeof result)
-          console.log('📦 Result is Map:', result instanceof Map)
-          console.log('📦 Result is Array:', Array.isArray(result))
-          console.log('📦 Result constructor:', result?.constructor?.name)
-          
-          // Result can be a Map or array
-          if (result instanceof Map) {
-            inboxId = result.get(inputAddress) || result.get(inputAddress.toLowerCase()) || null
-            if (inboxId) {
-              console.log('✅ Extracted inboxId from Map:', inboxId)
+          console.log('🔍 Trying findInboxIdByIdentifier as primary method...')
+          if (typeof client.findInboxIdByIdentifier === 'function') {
+            const result = await client.findInboxIdByIdentifier(targetIdentifier)
+            console.log('📦 findInboxIdByIdentifier result:', result)
+            if (typeof result === 'string' && result.length > 0) {
+              inboxId = result
+              console.log('✅ Successfully got inboxId using findInboxIdByIdentifier:', inboxId)
+            } else if (result) {
+              console.log('⚠️ findInboxIdByIdentifier returned unexpected result:', result)
             } else {
-              console.log('⚠️ Map exists but no inboxId found for address')
-              console.log('   Map keys:', Array.from(result.keys()))
-              console.log('   Map entries:', Array.from(result.entries()))
-            }
-          } else if (Array.isArray(result) && result.length > 0) {
-            // If array, first element might be the inboxId
-            inboxId = result[0]
-            console.log('✅ Extracted inboxId from Array:', inboxId)
-          } else if (typeof result === 'string' && result.length > 0) {
-            inboxId = result
-            console.log('✅ Result is string (inboxId):', inboxId)
-          } else if (result && typeof result === 'object') {
-            // Try to extract from object
-            const keys = Object.keys(result)
-            console.log('📋 Result object keys:', keys)
-            if (keys.length > 0) {
-              inboxId = (result as any)[keys[0]] || null
-              console.log('✅ Extracted inboxId from object:', inboxId)
+              console.log('⚠️ findInboxIdByIdentifier returned undefined for address:', inputAddress)
             }
           } else {
-            console.log('⚠️ getInboxIdByIdentities returned unexpected format:', result)
+            console.warn('⚠️ client.findInboxIdByIdentifier is not available on this SDK version')
           }
         } catch (err: any) {
-          console.error('❌ getInboxIdByIdentities failed:', err)
-          console.error('   Error message:', err?.message)
-          console.error('   Error stack:', err?.stack)
-          // Method might not exist or address might not have XMTP identity
-        }
-      }
-
-      // Method 2b: Try getInboxIdByIdentifier (singular) as fallback
-      if (!inboxId) {
-        try {
-          console.log('🔍 Trying getInboxIdByIdentifier (singular) as fallback...')
-          const result = await client.getInboxIdByIdentifier({
-            identifier: inputAddress,
-            identifierKind: 'Ethereum',
-          })
-          
-          console.log('📦 getInboxIdByIdentifier result:', result)
-          
-          if (result && typeof result === 'string' && result.length > 0) {
-            inboxId = result
-            console.log('✅ Successfully got inboxId using getInboxIdByIdentifier:', inboxId)
-          } else {
-            console.log('⚠️ getInboxIdByIdentifier returned unexpected result:', result)
-          }
-        } catch (err: any) {
-          console.warn('❌ getInboxIdByIdentifier failed:', err?.message || err)
-          // Method might not exist in this SDK version
+          console.warn('❌ findInboxIdByIdentifier failed:', err?.message || err)
+          // Continue to other fallbacks
         }
       }
 
@@ -397,30 +400,10 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       // We need the actual inboxId to create/find the correct conversation
       // The address is NOT the same as inboxId, so using getDmByInboxId(address) finds wrong conversations
 
-      // Method 4: Try creating DM directly with address (some SDK versions might support this)
-      if (!inboxId) {
-        console.log('Attempting to create DM directly with address...')
-        try {
-          // Try newDm with address directly - this might work in some SDK versions
-          const testConversation = await client.conversations.newDm(inputAddress as any)
-          if (testConversation) {
-            console.log('✅ Successfully created DM with address directly!')
-            onSelectConversation(testConversation)
-            setSearchAddress('')
-            setResolvedIdentity(null)
-            setPendingAddress(null)
-            setShowConfirmationModal(false)
-            setIsCreatingConversation(false)
-            return
-          }
-        } catch (err: any) {
-          console.log('newDm with address failed:', err?.message || err)
-          // If error mentions inboxId, we know we need the actual inboxId
-          if (err?.message?.includes('inboxId') || err?.message?.includes('inbox')) {
-            console.log('Error confirms we need inboxId, not address')
-          }
-        }
-      }
+      // Method 4: REMOVED - Don't use address as inboxId, it finds wrong conversations
+      // We need the actual inboxId to create/find the correct conversation
+      // The address is NOT the same as inboxId, so using getDmByInboxId(address) finds wrong conversations
+      // AND passing address to newDm creates broken "inactive" groups if the user isn't on the network
 
       if (!inboxId) {
         // Log comprehensive debugging info
@@ -435,20 +418,19 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         console.error('')
         console.error('Available workarounds attempted:')
         console.error('1. ✅ Checked existing DMs')
-        console.error('2. ❌ getInboxIdByIdentifier (tried but may not be available or failed)')
-        console.error('3. ❌ Extract from canMessage result (no inboxId found)')
-        console.error('4. ❌ getDmByInboxId with address (failed)')
-        console.error('5. ❌ newDm with address directly (failed)')
+        console.error('2. ✅ findInboxIdByIdentifier (returned no value)')
+        console.error('3. ✅ Extract from canMessage result')
+        console.error('4. ✅ getDmByInboxId with address (skipped due to mismatch)')
+        console.error('5. ✅ newDm with address directly (requires inboxId)')
         console.error('')
         console.error('SOLUTION: Browser SDK v5.1.0 may require inboxId to create DMs.')
         console.error('Possible solutions:')
-        console.error('- Check if getInboxIdByIdentifier exists but needs different parameters')
+        console.error('- Ensure findInboxIdByIdentifier succeeds (may require recipient to have XMTP identity)')
         console.error('- Query the XMTP network API directly (attempted below)')
         console.error('- Use existing conversations if available')
         console.error('==============================')
         
-        // Try one more thing - check all conversations (not just DMs)
-        // Only do this if we still don't have an inboxId and need to find existing conversation
+        // Try one more thing - check all conversations (not just DMs) for address match
         if (!inboxId) {
           try {
             console.log('🔍 Checking all conversations (not just DMs) for address:', inputAddress)
@@ -499,10 +481,13 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         
         // Try querying XMTP network API directly as last resort
         console.log('Attempting to query XMTP network API directly...')
+        
+        // Clear any previous inboxId to ensure we don't reuse stale data
+        inboxId = null
+        
         try {
-          // XMTP production API endpoint for identity lookup
-          const apiUrl = 'https://production.xmtp.network/v1/identities'
-          const response = await fetch(`${apiUrl}?address=${inputAddress}`, {
+          // Use our local proxy to avoid CORS and try multiple endpoints
+          const response = await fetch(`/api/xmtp/identity?address=${inputAddress}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -511,16 +496,26 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           
           if (response.ok) {
             const data = await response.json()
-            console.log('XMTP API response:', data)
+            console.log('XMTP Proxy API response:', data)
+            
+            // Check various formats
             if (data.inboxId) {
               inboxId = data.inboxId
-              console.log('Got inboxId from XMTP API:', inboxId)
+            } else if (data[inputAddress]) {
+               // Sometimes map format or nested object
+               const val = data[inputAddress]
+               if (typeof val === 'string') inboxId = val
+               else if (typeof val === 'object' && val.inboxId) inboxId = val.inboxId
+            } else if (data.identifiers && data.identifiers[inputAddress]) {
+               inboxId = data.identifiers[inputAddress]
             }
+            
+            if (inboxId) console.log('✅ Got inboxId from Proxy API:', inboxId)
           } else {
-            console.log('XMTP API query failed:', response.status, response.statusText)
+            console.log('XMTP Proxy API query failed:', response.status, response.statusText)
           }
         } catch (err: any) {
-          console.warn('Direct API query failed (CORS or network issue):', err?.message || err)
+          console.warn('Proxy API query failed:', err?.message || err)
         }
         
         if (!inboxId) {
@@ -531,12 +526,11 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
             ``,
             `Methods attempted:`,
             `  1. ✅ Checked existing DMs`,
-            `  2. ${canMessageDebugInfo ? '✅' : '❌'} getInboxIdByIdentities (plural)`,
-            `  3. ✅ getInboxIdByIdentifier (singular)`,
-            `  4. ✅ getDmByInboxId with address`,
-            `  5. ✅ newDm with address directly`,
-            `  6. ✅ Checked all conversations`,
-            `  7. ✅ Direct XMTP API query`,
+            `  2. ✅ findInboxIdByIdentifier`,
+            `  3. ✅ getDmByInboxId with address`,
+            `  4. ✅ newDm with address directly`,
+            `  5. ✅ Checked all conversations`,
+            `  6. ✅ Direct XMTP API query`,
             ``,
             `Conclusion: This address ${canMessage ? 'has XMTP but inboxId cannot be retrieved' : 'does not have an XMTP identity yet'}`,
           ].join('\n')
@@ -596,6 +590,13 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       // Since new DM conversations might not have peerAddress immediately
       if (!conversation.peerAddress) {
         (conversation as any).peerAddress = inputAddress
+      }
+
+      // Refresh conversation list so the new DM appears immediately
+      try {
+        await refreshConversations()
+      } catch (refreshError) {
+        console.warn('⚠️ Failed to refresh conversations after creating DM:', refreshError)
       }
       
       onSelectConversation(conversation)
