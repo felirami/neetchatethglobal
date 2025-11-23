@@ -234,20 +234,34 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
         console.log('Existing DMs:', existingDms.length)
         
         const existingDm = existingDms.find((dm: any) => {
-          const peerAddr = dm.peerAddress || dm.peer?.address || dm.address || dm.peerAddress
+          const peerAddr = dm.peerAddress || dm.peer?.address || dm.address
           const matches = peerAddr?.toLowerCase() === inputAddress.toLowerCase()
           if (matches) {
-            console.log('Found existing DM:', dm)
+            console.log('✅ Found existing DM with matching address:', {
+              dmId: dm.id,
+              peerAddress: peerAddr,
+              targetAddress: inputAddress
+            })
           }
           return matches
         })
         
         if (existingDm) {
-          console.log('Using existing DM conversation')
-          onSelectConversation(existingDm)
-          setSearchAddress('')
-          setIsCreatingConversation(false)
-          setResolvedIdentity(null)
+          // Verify the address matches before using it
+          const peerAddr = existingDm.peerAddress || existingDm.peer?.address || existingDm.address
+          if (peerAddr?.toLowerCase() === inputAddress.toLowerCase()) {
+            console.log('✅ Using existing DM conversation with correct address')
+            onSelectConversation(existingDm)
+            setSearchAddress('')
+            setResolvedIdentity(null)
+            setPendingAddress(null)
+            setShowConfirmationModal(false)
+            setIsCreatingConversation(false)
+            return
+          } else {
+            console.warn('⚠️ Found DM but address mismatch, will create new one')
+          }
+        }
           return
         }
         
@@ -419,18 +433,25 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
           const allConversations = await client.conversations.list()
           console.log('Found all conversations:', allConversations.length)
           
-          // Look for any conversation with this address
+          // Look for any conversation with this EXACT address
           for (const conv of allConversations) {
             const peerAddr = conv.peerAddress || conv.peer?.address || conv.address
             if (peerAddr?.toLowerCase() === inputAddress.toLowerCase()) {
-              console.log('✅ Found existing conversation with this address:', conv)
-              onSelectConversation(conv)
-              setSearchAddress('')
-              setResolvedIdentity(null)
-              setPendingAddress(null)
-              setShowConfirmationModal(false)
-              setIsCreatingConversation(false)
-              return
+              console.log('✅ Found existing conversation with matching address:', {
+                convId: conv.id,
+                peerAddress: peerAddr,
+                targetAddress: inputAddress
+              })
+              // Double-check the address matches before using it
+              if (peerAddr?.toLowerCase() === inputAddress.toLowerCase()) {
+                onSelectConversation(conv)
+                setSearchAddress('')
+                setResolvedIdentity(null)
+                setPendingAddress(null)
+                setShowConfirmationModal(false)
+                setIsCreatingConversation(false)
+                return
+              }
             }
           }
         } catch (err: any) {
