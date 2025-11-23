@@ -3,11 +3,11 @@ import type { Metadata } from 'next'
 const baseUrl = 'https://neetchat3.vercel.app'
 
 export const metadata: Metadata = {
-  title: 'NeetChat - Chat',
-  description: 'Chat with other wallets using XMTP',
+  title: 'NeetChat - XMTP Wallet-to-Wallet Messaging',
+  description: 'Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address. No sign-ups required.',
   openGraph: {
-    title: 'NeetChat - Chat',
-    description: 'Chat with other wallets using XMTP',
+    title: 'NeetChat - XMTP Wallet-to-Wallet Messaging',
+    description: 'Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address. No sign-ups required.',
     url: `${baseUrl}/chat`,
     images: [
       {
@@ -20,16 +20,26 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NeetChat - Chat',
-    description: 'Chat with other wallets using XMTP',
+    title: 'NeetChat - XMTP Wallet-to-Wallet Messaging',
+    description: 'Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address. No sign-ups required.',
     images: [`${baseUrl}/og-image.svg`],
   },
   other: {
-    'fc:frame': 'vNext',
-    'fc:frame:image': `${baseUrl}/og-image.svg`,
-    'fc:frame:button:1': '💬 Chat',
-    'fc:frame:button:1:action': 'launch_miniapp',
-    'fc:frame:button:1:target': `${baseUrl}/chat`,
+    // Farcaster frame meta tag as JSON string (required format)
+    'fc:frame': JSON.stringify({
+      version: 'next',
+      imageUrl: `${baseUrl}/og-image.svg`,
+      button: {
+        title: '💬 Chat',
+        action: {
+          type: 'launch_miniapp',
+          name: 'NeetChat',
+          url: `${baseUrl}/chat`,
+          splashImageUrl: `${baseUrl}/logo.svg`,
+          splashBackgroundColor: '#0ea5e9',
+        },
+      },
+    }),
   },
 }
 

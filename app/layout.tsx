@@ -11,12 +11,12 @@ const inter = Inter({ subsets: ['latin'] })
 const baseUrl = 'https://neetchat3.vercel.app'
 
 export const metadata: Metadata = {
-  title: 'NeetChat - XMTP Chat',
-  description: 'Connect your wallet and chat with other wallets using XMTP',
+  title: 'NeetChat - XMTP Wallet-to-Wallet Messaging',
+  description: 'Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address. No sign-ups required.',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   openGraph: {
-    title: 'NeetChat - XMTP Chat',
-    description: 'Connect your wallet and chat with other wallets using XMTP',
+    title: 'NeetChat - XMTP Wallet-to-Wallet Messaging',
+    description: 'Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address. No sign-ups required.',
     url: baseUrl,
     siteName: 'NeetChat',
     images: [
@@ -32,8 +32,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NeetChat - XMTP Chat',
-    description: 'Connect your wallet and chat with other wallets using XMTP',
+    title: 'NeetChat - XMTP Wallet-to-Wallet Messaging',
+    description: 'Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address. No sign-ups required.',
     images: [`${baseUrl}/og-image.svg`],
   },
   other: {
