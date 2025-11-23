@@ -180,7 +180,45 @@
 
 ## Current Issues & Challenges
 
-### 1. Conversation Sync Delay ⚠️
+### 1. Wrong Conversation Selection When Resolving ENS/Farcaster ⚠️ **ACTIVE BUG**
+
+**Issue**: When resolving ENS names (e.g., `felirami.eth`) or Farcaster usernames and clicking "Start Chat", the app opens an existing conversation with ID `a7e524bd0ca9c159862fd463bc935f72` instead of creating a new conversation with the resolved wallet address.
+
+**Symptoms**:
+- User enters `felirami.eth` → resolves to `0x281e6843cc18c8d58ee131309f788879f6c18d10`
+- Confirmation modal shows correct resolved address
+- User clicks "Start Chat"
+- Instead of creating new conversation, opens wrong conversation `a7e524bd...`
+- Chat window shows wrong conversation
+
+**Root Cause** (Suspected):
+- The code checks for existing conversations before creating new ones
+- An existing conversation (`a7e524bd...`) is being matched incorrectly
+- The matching logic may be finding conversations without proper `peerAddress` comparison
+- Or the conversation has a different address but is still being selected
+
+**Debugging Steps Taken**:
+- ✅ Added detailed logging to show all existing DMs and their addresses
+- ✅ Added logging to show which conversations match the target address
+- ✅ Added strict address verification before using existing conversations
+- ✅ Skip conversations without addresses (can't match)
+- ✅ Removed fallback methods that used address as inboxId (caused wrong matches)
+
+**Next Steps**:
+- Review console logs when user tries to create conversation with `felirami.eth`
+- Check if conversation `a7e524bd...` has a `peerAddress` and what it is
+- Verify that address matching is working correctly
+- Consider creating new conversation even if existing one is found (if address doesn't match exactly)
+
+**Key Files Modified**:
+- `components/ConversationList.tsx` - Added detailed logging and strict address matching
+- `components/IdentityConfirmationModal.tsx` - Added error display in modal
+
+**Status**: 🔴 **IN PROGRESS** - Debugging with detailed logging
+
+---
+
+### 2. Conversation Sync Delay ⚠️
 
 **Issue**: Conversations created from other installations (e.g., Base app) are not immediately visible in the localhost app, even after messages are sent and marked as "delivered".
 
@@ -259,6 +297,50 @@ from origin 'http://localhost:3000' has been blocked by CORS policy
 - **Additional UI Improvements**: Added "Copy Address" button with feedback, "Refresh" button for manual message retrieval, and improved error handling.
 
 **Key Files Modified**: `components/ChatWindow.tsx`, `components/ConversationList.tsx`
+
+### 7. Page Refresh Redirect Issue ✅
+
+**Issue**: Refreshing `/chat` page redirected to home page (`/`) even when wallet was connected.
+
+**Root Cause**: Wagmi connection status wasn't hydrated yet on page load, causing `isWalletConnected` to be temporarily `false`, triggering redirect.
+
+**Solution**: 
+- Wait for Wagmi to finish hydrating before checking connection status
+- Use `status` from `useAccount()` to determine if Wagmi is ready
+- Only redirect if wallet is definitely not connected after hydration
+
+**Status**: **Resolved**
+
+**Key Files Modified**: `app/chat/page.tsx`
+
+### 8. Error Messages Not Visible in Confirmation Modal ✅
+
+**Issue**: When conversation creation failed, the modal closed before user could see the error message.
+
+**Solution**:
+- Added `error` prop to `IdentityConfirmationModal` to display errors
+- Keep modal open when there's an error (don't close automatically)
+- Show error message in red alert box inside modal
+- Clear error when user cancels modal
+
+**Status**: **Resolved**
+
+**Key Files Modified**: `components/IdentityConfirmationModal.tsx`, `components/ConversationList.tsx`
+
+### 9. ENS/Farcaster Mention Resolution Distinction ✅
+
+**Issue**: Confusion between Farcaster usernames ending in `.eth` and pure ENS names.
+
+**Solution**:
+- `@username` (with `@`) → Always treated as Farcaster username lookup
+- `@username.eth` (with `@`) → Treated as Farcaster username (`.eth` is part of username)
+- `username.eth` (without `@`) → Treated as ENS lookup
+- Added `isMention` flag to distinguish resolution types
+- Updated cache keys to include resolution type (`username:mention` vs `username:ens`)
+
+**Status**: **Resolved**
+
+**Key Files Modified**: `lib/identity/resolve.ts`, `contexts/IdentityContext.tsx`
 
 ## Technical Implementation Details
 
@@ -478,10 +560,30 @@ For XMTP-specific issues, refer to:
 
 ---
 
-**Last Updated**: November 2025
-**Project Status**: Functional with known sync delays
+**Last Updated**: December 2025
+**Project Status**: Functional with active bug in conversation selection
 **XMTP SDK Version**: 5.1.0
 **Next.js Version**: 14.x
 **Application Version**: 0.1.0 (Hackathon Submission)
 **Repository**: https://github.com/felirami/neetchatethglobal
+
+## Recent Changes (December 2025)
+
+### Latest Fixes
+- ✅ Fixed page refresh redirect issue on `/chat` page
+- ✅ Added error display in confirmation modal
+- ✅ Fixed ENS vs Farcaster mention distinction
+- ✅ Added detailed logging for debugging conversation selection
+
+### Active Bugs
+- 🔴 **Wrong conversation selection** when resolving ENS/Farcaster names
+  - Issue: Opens wrong conversation instead of creating new one
+  - Status: Debugging with detailed logging
+  - Next: Review console logs to identify root cause
+
+### Next Steps
+1. Debug wrong conversation selection issue
+2. Review console logs when resolving `felirami.eth`
+3. Fix conversation matching logic if needed
+4. Test full flow: input ENS → popup → confirm → correct chat opens
 

@@ -437,5 +437,50 @@ This document tracks the development progress of NeetChat, showing the evolution
 
 ---
 
+### Phase 12: ENS/Farcaster Chat Initiation & UX Improvements (ETHGlobal 2025)
+
+**Goal**: Enable users to start chats by entering ENS names or Farcaster usernames, with proper identity resolution and confirmation
+
+#### Completed:
+- ✅ Integrated ENS/Farcaster resolution into "New Chat" input in ConversationList
+- ✅ Created IdentityConfirmationModal component to show resolved identity before starting chat
+- ✅ Added confirmation flow: input → resolve → show modal → confirm → create conversation
+- ✅ Fixed distinction between Farcaster mentions (@username.eth) and ENS names (username.eth)
+- ✅ Added error display in confirmation modal (keep modal open on error)
+- ✅ Fixed page refresh redirect issue (wait for Wagmi hydration)
+- ✅ Added detailed logging for debugging conversation selection issues
+- ✅ Improved address matching verification (strict comparison)
+
+#### Key Files Created:
+- `components/IdentityConfirmationModal.tsx` - Confirmation modal with identity display
+
+#### Key Files Modified:
+- `components/ConversationList.tsx` - Integrated resolution, added confirmation modal, improved error handling
+- `app/chat/page.tsx` - Fixed redirect on refresh
+- `lib/identity/resolve.ts` - Fixed ENS vs Farcaster distinction
+- `contexts/IdentityContext.tsx` - Updated cache keys for resolution types
+
+#### Challenges Overcome:
+- Fixed confusion between Farcaster usernames ending in `.eth` and pure ENS names
+- Resolved page refresh redirect issue by waiting for Wagmi hydration
+- Improved error visibility by keeping modal open on error
+- Added comprehensive logging for debugging conversation selection
+
+#### Current Issues:
+- ⚠️ **ACTIVE BUG**: Wrong conversation selection when resolving ENS/Farcaster
+  - When resolving `felirami.eth` → `0x281e6843cc18c8d58ee131309f788879f6c18d10`
+  - Opens existing conversation `a7e524bd0ca9c159862fd463bc935f72` instead of creating new one
+  - Added detailed logging to debug - need to check console logs to see why wrong conversation is selected
+  - Suspected: Existing conversation matching logic is incorrect or conversation has wrong/no address
+
+#### Technical Decisions:
+- Use confirmation modal to show resolved identity before creating conversation
+- Keep modal open on error so user can see error message
+- Wait for Wagmi hydration before checking connection status
+- Strict address matching verification before using existing conversations
+- Detailed logging for debugging conversation selection issues
+
+---
+
 **Note**: This development log demonstrates legitimate, incremental development work over several weeks. Each phase builds upon the previous one, showing a clear progression of features and improvements.
 
