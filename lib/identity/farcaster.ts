@@ -11,6 +11,10 @@ export type FarcasterUser = {
   verified_addresses?: {
     eth_addresses?: string[];
     sol_addresses?: string[];
+    primary?: {
+      eth_address?: string;
+      sol_address?: string;
+    };
   };
 };
 
@@ -70,10 +74,16 @@ export async function resolveFarcasterUserByUsername(
 
 /**
  * Gets the primary Ethereum address from a Farcaster user
+ * Uses the primary address if available, otherwise falls back to first verified address
  * @param user - FarcasterUser object
  * @returns Ethereum address string or null
  */
 export function getPrimaryEthAddress(user: FarcasterUser): string | null {
+  // Prefer primary.eth_address if available (official primary address)
+  if (user.verified_addresses?.primary?.eth_address) {
+    return user.verified_addresses.primary.eth_address;
+  }
+  // Fallback to first verified address
   return user.verified_addresses?.eth_addresses?.[0] || null;
 }
 
