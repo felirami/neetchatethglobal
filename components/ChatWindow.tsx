@@ -198,6 +198,37 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
     setIsSending(true)
     setError(null)
     
+    // Get peer address for canMessage check
+    let checkPeerAddress = conversation.peerAddress || (conversation as any).peer?.address || (conversation as any).address
+    if (!checkPeerAddress && typeof window !== 'undefined' && conversation.id) {
+      const addressMap = JSON.parse(localStorage.getItem('xmtp_conversation_addresses') || '{}')
+      checkPeerAddress = addressMap[conversation.id]
+    }
+    
+    // Check if peer has XMTP identity before sending
+    // If canMessage is false, messages won't be delivered
+    try {
+      if (client && checkPeerAddress && checkPeerAddress.startsWith('0x') && checkPeerAddress.length === 42) {
+        const { Client } = await import('@xmtp/browser-sdk')
+        const canMessageResult = await Client.canMessage([
+          { identifier: checkPeerAddress, identifierKind: 'Ethereum' }
+        ])
+        
+        const canMessage = canMessageResult instanceof Map
+          ? canMessageResult.get(checkPeerAddress.toLowerCase()) === true
+          : (canMessageResult as any)?.[checkPeerAddress.toLowerCase()] === true
+        
+        if (!canMessage) {
+          setError(`⚠️ The recipient (${formatAddress(checkPeerAddress)}) doesn't have XMTP enabled. Messages will be queued but won't be delivered until they set up XMTP.`)
+          setIsSending(false)
+          return
+        }
+      }
+    } catch (checkError) {
+      console.warn('Could not check canMessage before sending:', checkError)
+      // Continue anyway - the message might still go through
+    }
+    
     // Optimistically add message to UI immediately
     // Set both senderAddress and senderInboxId so isFromMe check works immediately
     const optimisticMessage = {
