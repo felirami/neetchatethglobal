@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useXMTP } from '@/contexts/XMTPContext'
+import { useIdentity } from '@/contexts/IdentityContext'
+import { resolveMention } from '@/lib/identity/resolve'
+import { extractMentions } from '@/lib/mentions'
 
 // Define Conversation type locally
 type Conversation = any
@@ -13,10 +16,13 @@ interface ConversationListProps {
 
 export function ConversationList({ onSelectConversation, selectedConversationId }: ConversationListProps) {
   const { client } = useXMTP()
+  const { resolveMention: resolveMentionCached } = useIdentity()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchAddress, setSearchAddress] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isResolving, setIsResolving] = useState(false)
+  const [resolvedIdentity, setResolvedIdentity] = useState<{ displayLabel: string; address: string; source: string } | null>(null)
 
   const refreshConversations = async () => {
     if (!client) return
@@ -204,8 +210,9 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
   const handleNewConversation = async () => {
     console.log('🚀 handleNewConversation called', { client: !!client, searchAddress, trimmed: searchAddress.trim() })
     
-    // Clear any previous errors
+    // Clear any previous errors and resolved identity
     setError(null)
+    setResolvedIdentity(null)
     
     if (!client || !searchAddress.trim()) {
       console.log('❌ Early return:', { hasClient: !!client, hasAddress: !!searchAddress.trim() })
@@ -213,14 +220,56 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
     }
 
     try {
-      const address = searchAddress.trim().toLowerCase()
-      console.log('📍 Processing address:', address)
+      let address = searchAddress.trim()
+      const inputLower = address.toLowerCase()
       
-      if (!address.startsWith('0x') || address.length !== 42) {
-        console.log('❌ Invalid address format:', { startsWith0x: address.startsWith('0x'), length: address.length })
-        setError('Please enter a valid Ethereum address (must start with 0x and be 42 characters)')
-        return
+      // Check if input is a mention (starts with @)
+      if (inputLower.startsWith('@')) {
+        setIsResolving(true)
+        setError(null)
+        
+        // Extract username from mention
+        const mentions = extractMentions(address)
+        if (mentions.length === 0) {
+          setError('Invalid mention format. Use @username, @name.eth, or @agent')
+          setIsResolving(false)
+          return
+        }
+        
+        const username = mentions[0].username
+        console.log('🔍 Resolving mention:', username)
+        
+        // Resolve the mention
+        const identity = await resolveMentionCached(username)
+        
+        setIsResolving(false)
+        
+        if (!identity || !identity.walletAddress) {
+          setError(`Could not resolve @${username}. They may not have a Farcaster account, ENS name, or be in the directory.`)
+          return
+        }
+        
+        // Show resolved identity
+        setResolvedIdentity({
+          displayLabel: identity.displayLabel,
+          address: identity.walletAddress,
+          source: identity.source,
+        })
+        
+        address = identity.walletAddress.toLowerCase()
+        console.log('✅ Resolved mention:', { username, address, source: identity.source })
+      } else {
+        // Not a mention, validate as Ethereum address
+        address = inputLower
+        
+        if (!address.startsWith('0x') || address.length !== 42) {
+          console.log('❌ Invalid address format:', { startsWith0x: address.startsWith('0x'), length: address.length })
+          setError('Please enter a valid Ethereum address (must start with 0x and be 42 characters) or a mention like @username, @name.eth, or @agent')
+          return
+        }
       }
+      
+      console.log('📍 Processing address:', address)
 
       // Verify client is ready and has conversations object
       if (!client.conversations) {
@@ -623,6 +672,7 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
       onSelectConversation(conversation)
       setSearchAddress('')
       setError(null) // Clear error on success
+      setResolvedIdentity(null) // Clear resolved identity
     } catch (err: any) {
       console.error('Error creating conversation:', err)
       console.error('Client object:', client)
@@ -698,25 +748,43 @@ export function ConversationList({ onSelectConversation, selectedConversationId 
             </div>
           </div>
         )}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Enter wallet address (0x...)"
-            value={searchAddress}
-            onChange={(e) => {
-              setSearchAddress(e.target.value)
-              setError(null) // Clear error when user starts typing
-            }}
-            onKeyPress={(e) => e.key === 'Enter' && handleNewConversation()}
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-          <button
-            onClick={handleNewConversation}
-            disabled={!searchAddress.trim()}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            New Chat
-          </button>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Enter address (0x...) or mention (@username, @name.eth, @agent)"
+              value={searchAddress}
+              onChange={(e) => {
+                setSearchAddress(e.target.value)
+                setError(null) // Clear error when user starts typing
+                setResolvedIdentity(null) // Clear resolved identity when typing
+              }}
+              onKeyPress={(e) => e.key === 'Enter' && !isResolving && handleNewConversation()}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              disabled={isResolving}
+            />
+            <button
+              onClick={handleNewConversation}
+              disabled={!searchAddress.trim() || isResolving}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isResolving ? 'Resolving...' : 'New Chat'}
+            </button>
+          </div>
+          
+          {/* Show resolved identity */}
+          {resolvedIdentity && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-blue-600 dark:text-blue-400 font-medium">✅ Resolved:</span>
+                <span className="text-blue-700 dark:text-blue-300">{resolvedIdentity.displayLabel}</span>
+                <span className="text-blue-500 dark:text-blue-400 text-xs">({resolvedIdentity.source})</span>
+                <span className="text-blue-600 dark:text-blue-400 text-xs ml-auto">
+                  {resolvedIdentity.address.slice(0, 6)}...{resolvedIdentity.address.slice(-4)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
