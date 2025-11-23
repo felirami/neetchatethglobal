@@ -7,11 +7,11 @@
   "miniapp": {
     "version": "1",
     "name": "NeetChat",
-    "iconUrl": "https://neetchat3.vercel.app/logo.png",
+    "iconUrl": "https://neetchat3.vercel.app/logo.svg",
     "homeUrl": "https://neetchat3.vercel.app/chat",
-    "imageUrl": "https://neetchat3.vercel.app/og-image.png",
+    "imageUrl": "https://neetchat3.vercel.app/og-image.svg",
     "buttonTitle": "💬 Chat",
-    "splashImageUrl": "https://neetchat3.vercel.app/logo.png",
+    "splashImageUrl": "https://neetchat3.vercel.app/logo.svg",
     "splashBackgroundColor": "#0ea5e9"
   }
 }
