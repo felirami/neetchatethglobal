@@ -1,4 +1,9 @@
 {
+  "accountAssociation": {
+    "header": "eyJmaWQiOjE5NjE0OSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweGNkMmE3M2Y5ZDM0ZDc4Njc3ZjFFRUYxODRhNEZDNjQxODhENEZiYzQifQ",
+    "payload": "eyJkb21haW4iOiJuZWV0Y2hhdDMudmVyY2VsLmFwcCJ9",
+    "signature": "zPCTYB/xqMFTJ1v1bldUOMsvXIgc4j1jsv1oR3wfV/1QaaOMrl/JS3PLgGVnlRoaGtBnhfadNUrIAjSSosarJxs="
+  },
   "miniapp": {
     "version": "1",
     "name": "NeetChat",
