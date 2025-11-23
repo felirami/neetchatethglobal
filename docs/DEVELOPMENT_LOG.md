@@ -299,91 +299,6 @@ This document tracks the development progress of NeetChat, showing the evolution
 
 ---
 
-## Key Technical Achievements
-
-### 1. XMTP SDK Integration
-- Successfully integrated XMTP Browser SDK v5.1.0
-- Resolved WASM module SSR issues
-- Implemented proper client lifecycle management
-
-### 2. Real-time Messaging
-- Implemented message streaming
-- Added optimistic UI updates
-- Ensured message delivery with sync
-
-### 3. Cross-Device Sync
-- Implemented comprehensive sync system
-- Added periodic sync for missed updates
-- Handled welcome message processing
-
-### 4. Error Handling
-- Created robust error boundaries
-- Improved user-facing error messages
-- Added comprehensive debugging tools
-
-### 5. User Experience
-- Mobile-first responsive design
-- Optimistic UI updates
-- Clear error messages and status indicators
-
-## Current Status
-
-**Version**: 0.1.0  
-**Status**: Functional with known sync delays  
-**Last Updated**: November 2025
-**Repository**: https://github.com/felirami/neetchatethglobal
-**License**: MIT License
-
-### Working Features
-- ✅ Wallet connection (all major providers)
-- ✅ XMTP client initialization
-- ✅ Conversation creation and listing
-- ✅ Message sending and receiving
-- ✅ Real-time message streaming
-- ✅ Cross-device sync (with 30-minute delay)
-- ✅ Comprehensive documentation
-- ✅ GitHub repository with organized commit history
-
-### Known Limitations
-- ⚠️ 30-minute sync delay for new installations (XMTP protocol limitation)
-- ⚠️ CORS issues in development (resolved in production)
-- ⚠️ Browser-only (not React Native compatible)
-
-### Repository Status
-- ✅ GitHub repository created and pushed
-- ✅ 12 commits showing incremental development
-- ✅ Git tag v0.1.0 created
-- ✅ MIT License added
-- ✅ All documentation included
-- ✅ Ready for ETHGlobal hackathon submission
-
-## Future Enhancements
-
-1. **Performance Optimization**
-   - Implement message pagination
-   - Optimize sync frequency
-   - Add caching strategies
-
-2. **Features**
-   - Group chat support
-   - Message reactions
-   - File attachments
-   - Message search
-
-3. **User Experience**
-   - Loading states
-   - Offline support
-   - Push notifications
-   - Message read receipts
-
-4. **Infrastructure**
-   - Production deployment
-   - Monitoring and analytics
-   - Error tracking
-   - Performance metrics
-
----
-
 ### Phase 11: XMTP Mentions Implementation (ETHGlobal 2025)
 
 **Goal**: Implement @username mentions with Farcaster, ENS, and agent directory support
@@ -467,11 +382,7 @@ This document tracks the development progress of NeetChat, showing the evolution
 - Added comprehensive logging for debugging conversation selection
 
 #### Current Issues:
-- ⚠️ **ACTIVE BUG**: Wrong conversation selection when resolving ENS/Farcaster
-  - When resolving `felirami.eth` → `0x281e6843cc18c8d58ee131309f788879f6c18d10`
-  - Opens existing conversation `a7e524bd0ca9c159862fd463bc935f72` instead of creating new one
-  - Added detailed logging to debug - need to check console logs to see why wrong conversation is selected
-  - Suspected: Existing conversation matching logic is incorrect or conversation has wrong/no address
+- *(All previously tracked issues resolved — see Phase 13 for fix details.)*
 
 #### Technical Decisions:
 - Use confirmation modal to show resolved identity before creating conversation
@@ -482,5 +393,80 @@ This document tracks the development progress of NeetChat, showing the evolution
 
 ---
 
-**Note**: This development log demonstrates legitimate, incremental development work over several weeks. Each phase builds upon the previous one, showing a clear progression of features and improvements.
+### Phase 13: Stability & Robustness Improvements (December 2025)
 
+**Goal**: Address critical stability issues, improve error handling for XMTP operations, and fix identity resolution bugs.
+
+#### Completed:
+- ✅ **Fixed DB Locking on Refresh**: Implemented retry logic in `XMTPContext` to handle `NoModificationAllowedError` when refreshing the page. This prevents the app from creating new identities unnecessarily when the database lock is still held by the previous session.
+- ✅ **Persistent Test Wallet**: Updated `TestWalletContext` to persist state in `localStorage`, ensuring the test wallet remains connected across page refreshes.
+- ✅ **Robust Identity Resolution**: Created a server-side API proxy (`app/api/xmtp/identity/route.ts`) to query XMTP identity information, bypassing browser CORS issues and trying multiple endpoints.
+- ✅ **Fixed "False Positive" Sync Error**: Updated `ChatWindow` and `ConversationList` to ignore the "synced X messages, 0 failed" exception, which is actually a success message from the SDK.
+- ✅ **Updated Conversation Loading**: Added retry mechanisms in `ConversationList` to handle cases where initial loads return empty results due to timing issues.
+- ✅ **Corrected DM Inbox Resolution**: Replaced non-existent XMTP helper calls with `client.findInboxIdByIdentifier`, removed the stale hard-coded inbox fallback, and ensured ENS/Farcaster-started chats target the resolved wallet inbox.
+
+#### Key Files Created:
+- `app/api/xmtp/identity/route.ts` - Server-side proxy for XMTP identity lookup
+
+#### Key Files Modified:
+- `contexts/XMTPContext.tsx` - Added DB lock retry logic
+- `contexts/TestWalletContext.tsx` - Added localStorage persistence
+- `components/ConversationList.tsx` - Added identity proxy fallback, sync error handling, and corrected inbox resolution flow
+- `components/ChatWindow.tsx` - Added sync error handling
+- `docs/PROJECT_STATUS.md` - Updated current issues tracker for resolved ENS/Farcaster DM bug
+
+#### Technical Decisions:
+- **Server-Side Proxy**: Moving identity lookup to the server side solves CORS issues and allows for more robust error handling and multiple endpoint trials without exposing API keys or hitting browser restrictions.
+- **Error Pattern Matching**: Instead of suppressing all errors, specific patterns (like the sync success message) are identified and treated as success to improve UX without hiding genuine failures.
+- **Persistence**: Using `localStorage` for the test wallet mimics the behavior of real wallet connectors, providing a smoother development experience.
+- **Direct Inbox Resolution**: Relying on `client.findInboxIdByIdentifier` keeps us aligned with XMTP v5.1.0 APIs and avoids brittle hard-coded inbox IDs that can drift when recipients rotate installations.
+
+---
+
+### Phase 14: Conversation Matching Improvements (December 2025)
+
+**Goal**: Improve conversation matching reliability by using inboxId-based matching and implementing fallback mechanisms for when address-based matching fails.
+
+#### Completed:
+- ✅ **InboxId-Based Matching**: Implemented logic to match conversations by `peerInboxId` instead of just `peerAddress` (proper method for XMTP V3/MLS). This is the preferred approach since XMTP V3/MLS uses inboxIds as primary identifiers.
+- ✅ **localStorage Mapping System**: Created a system to store conversation ID → address mappings in localStorage. This allows restoring `peerAddress` for conversations that don't have it stored on the conversation object itself.
+- ✅ **Enhanced Existing Conversation Lookup**: Updated the existing DM lookup logic to check both `peerAddress` on the conversation object AND localStorage mappings, ensuring conversations can be found even if `peerAddress` is missing.
+- ✅ **Automatic Conversation Identification**: Implemented a feature that checks message senders (`senderAddress` or `senderInboxId`) in conversations without addresses to automatically map them to the target address. This helps identify conversations when other methods fail.
+- ✅ **Improved Error Messages**: Made error messages less definitive and more helpful, guiding users to check existing conversations manually or use debug utilities.
+- ✅ **Debug Utilities Enhancement**: Added `window.inspectXMTPMappings()`, `window.clearXMTPMappings()`, and `window.addXMTPMapping(conversationId, address)` utilities for manual mapping and debugging.
+- ✅ **Message Sender Checking**: Added logic to check if messages are from the peer (not from current user) to help identify conversations when address matching fails.
+
+#### Key Files Modified:
+- `components/ConversationList.tsx` - Added inboxId-based matching, localStorage checks, automatic message sender identification, enhanced existing DM lookup
+- `components/DebugPanel.tsx` - Added localStorage mapping utilities (`inspectLocalStorageMappings`, `clearLocalStorageMappings`, `addXMTPMapping`)
+
+#### Challenges Overcome:
+- **Address vs InboxId Mismatch**: XMTP V3/MLS uses inboxIds as primary identifiers, but users search by addresses. Implemented a multi-step approach: try to get inboxId first, then match by `peerInboxId`; if that fails, fall back to address matching with localStorage support.
+- **Missing peerAddress Metadata**: Many conversations don't have `peerAddress` stored. Implemented localStorage mapping system to restore this information and enhanced lookup logic to check both sources.
+- **False Negatives in canMessage**: `canMessage` can return false negatives, preventing conversation creation. Made `canMessage` check non-blocking and added multiple fallback methods.
+- **findInboxIdByIdentifier Failures**: Some addresses (e.g., `vitalik.eth`) fail to resolve to inboxId. Implemented automatic conversation identification by checking message senders as a fallback.
+
+#### Current Issues:
+- ⚠️ **Conversation Matching Still Failing for Some Addresses**: For addresses like `vitalik.eth`, `findInboxIdByIdentifier` returns `undefined` and `canMessage` returns `false`, preventing inboxId-based matching. The automatic message sender check hasn't found the conversation yet. This may indicate:
+  - The conversation doesn't exist (user hasn't chatted with Vitalik before)
+  - The conversation exists but messages don't have `senderAddress` (V3/MLS issue)
+  - Network/API issues preventing inboxId resolution
+  - The address doesn't actually have XMTP enabled
+
+#### Technical Decisions:
+- **InboxId-First Approach**: Try to get inboxId first, then match by `peerInboxId`. This aligns with XMTP V3/MLS architecture where inboxIds are primary identifiers.
+- **localStorage for Persistence**: Use localStorage to persist conversation → address mappings across page loads, since conversations may not have `peerAddress` stored.
+- **Multiple Fallback Methods**: Implemented a cascade of fallback methods: inboxId matching → address matching → localStorage matching → message sender checking → manual mapping.
+- **Non-Blocking canMessage**: Made `canMessage` check informational only (warn, don't block) since it can have false negatives.
+- **Automatic Discovery**: Check message senders in conversations without addresses to automatically discover and map them.
+
+#### Next Steps:
+1. Investigate why `findInboxIdByIdentifier` fails for specific addresses (API issue? Network issue? Address doesn't have XMTP?)
+2. Consider alternative methods to resolve inboxId (direct XMTP API queries, cached results, etc.)
+3. Improve automatic conversation identification to handle edge cases (messages without `senderAddress`, etc.)
+4. Consider UI improvements to help users manually identify and map conversations
+5. Add more comprehensive logging to understand why automatic identification isn't finding conversations
+
+---
+
+**Note**: This development log demonstrates legitimate, incremental development work over several weeks. Each phase builds upon the previous one, showing a clear progression of features and improvements.

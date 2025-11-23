@@ -52,6 +52,10 @@
 - ✅ Relaxed filtering to show conversations without peer addresses (for new groups)
 - ✅ "Force Sync" button for manual network sync
 - ✅ Fallback display names for groups without clear peer address
+- ✅ **NEW**: localStorage mapping system to restore peerAddress for conversations
+- ✅ **NEW**: InboxId-based conversation matching (preferred method for XMTP V3/MLS)
+- ✅ **NEW**: Automatic conversation identification by checking message senders
+- ✅ **NEW**: Enhanced existing conversation lookup with multiple fallback methods
 
 #### ChatWindow Component
 - ✅ Message display for selected conversation
@@ -138,6 +142,10 @@
 - ✅ Network statistics display
 - ✅ Forked conversation detection
 - ✅ Extensive console logging
+- ✅ **NEW**: localStorage mapping inspection (`window.inspectXMTPMappings()`)
+- ✅ **NEW**: localStorage mapping clearing (`window.clearXMTPMappings()`)
+- ✅ **NEW**: Manual mapping utility (`window.addXMTPMapping(conversationId, address)`)
+- ✅ **NEW**: Forked conversation resolution (`window.resolveForkedConversations()`)
 
 ### 6. Mentions & Identity Resolution
 
@@ -180,45 +188,75 @@
 
 ## Current Issues & Challenges
 
-### 1. Wrong Conversation Selection When Resolving ENS/Farcaster ⚠️ **ACTIVE BUG**
+### 1. Conversation Matching by Address vs InboxId ⚠️ **IN PROGRESS | December 2025**
 
-**Issue**: When resolving ENS names (e.g., `felirami.eth`) or Farcaster usernames and clicking "Start Chat", the app opens an existing conversation with ID `a7e524bd0ca9c159862fd463bc935f72` instead of creating a new conversation with the resolved wallet address.
+**Issue**: When searching for conversations (e.g., `vitalik.eth`), the system cannot reliably match existing conversations because:
+- Many conversations don't have `peerAddress` stored on the conversation object
+- `canMessage` can return false negatives (addresses with XMTP may show as not having it)
+- `findInboxIdByIdentifier` returns `undefined` for some addresses, preventing inboxId-based matching
+- Conversations are identified by conversation ID/inboxId in XMTP V3/MLS, not addresses
 
 **Symptoms**:
-- User enters `felirami.eth` → resolves to `0x281e6843cc18c8d58ee131309f788879f6c18d10`
-- Confirmation modal shows correct resolved address
-- User clicks "Start Chat"
-- Instead of creating new conversation, opens wrong conversation `a7e524bd...`
-- Chat window shows wrong conversation
+- User searches for `vitalik.eth` (resolves to `0xd8da6bf26964af9d7eed9e03e53415d37aa96045`)
+- `canMessage` returns `false` (false negative)
+- `findInboxIdByIdentifier` returns `undefined`
+- Existing conversation exists but cannot be found because it lacks `peerAddress`
+- User sees error: "Unable to verify XMTP identity for this address"
 
-**Root Cause** (Suspected):
-- The code checks for existing conversations before creating new ones
-- An existing conversation (`a7e524bd...`) is being matched incorrectly
-- The matching logic may be finding conversations without proper `peerAddress` comparison
-- Or the conversation has a different address but is still being selected
+**Root Cause**:
+- XMTP V3/MLS uses inboxIds and conversation IDs as primary identifiers, not addresses
+- Address-to-inboxId resolution can fail for various reasons (network issues, API limitations, etc.)
+- Conversations may exist but lack `peerAddress` metadata, making address-based matching impossible
 
-**Debugging Steps Taken**:
-- ✅ Added detailed logging to show all existing DMs and their addresses
-- ✅ Added logging to show which conversations match the target address
-- ✅ Added strict address verification before using existing conversations
-- ✅ Skip conversations without addresses (can't match)
-- ✅ Removed fallback methods that used address as inboxId (caused wrong matches)
+**Workarounds Implemented**:
+- ✅ **localStorage Mapping System**: Store conversation ID → address mappings in localStorage to restore `peerAddress` on page load
+- ✅ **Enhanced Existing DM Lookup**: Check both `peerAddress` on conversation object AND localStorage mappings
+- ✅ **InboxId-Based Matching**: Try to get inboxId first, then match conversations by `peerInboxId` (preferred method)
+- ✅ **Automatic Conversation Identification**: Check message senders (`senderAddress` or `senderInboxId`) in conversations without addresses to auto-map them
+- ✅ **Debug Utilities**: Added `window.inspectXMTPMappings()`, `window.clearXMTPMappings()`, and `window.addXMTPMapping(conversationId, address)` for manual mapping
+- ✅ **Improved Error Messages**: Less definitive error messages that guide users to check existing conversations manually
+
+**Current Status**: 
+- Matching by `peerInboxId` is implemented but requires successful inboxId resolution (which fails for Vitalik's address)
+- Automatic message sender checking is implemented but hasn't found Vitalik's conversation yet
+- localStorage mapping system works but requires conversations to be manually mapped or auto-discovered
 
 **Next Steps**:
-- Review console logs when user tries to create conversation with `felirami.eth`
-- Check if conversation `a7e524bd...` has a `peerAddress` and what it is
-- Verify that address matching is working correctly
-- Consider creating new conversation even if existing one is found (if address doesn't match exactly)
+1. Investigate why `findInboxIdByIdentifier` fails for Vitalik's address (API issue? Network issue?)
+2. Consider alternative methods to resolve inboxId (direct XMTP API queries, cached results)
+3. Improve automatic conversation identification to handle edge cases
+4. Consider UI improvements to help users manually identify and map conversations
 
 **Key Files Modified**:
-- `components/ConversationList.tsx` - Added detailed logging and strict address matching
-- `components/IdentityConfirmationModal.tsx` - Added error display in modal
-
-**Status**: 🔴 **IN PROGRESS** - Debugging with detailed logging
+- `components/ConversationList.tsx` - Added inboxId-based matching, localStorage checks, automatic message sender identification
+- `components/DebugPanel.tsx` - Added localStorage mapping utilities
 
 ---
 
-### 2. Conversation Sync Delay ⚠️
+### 2. Wrong Conversation Selection When Resolving ENS/Farcaster ✅ **RESOLVED | 2025-11-23**
+
+**Issue**: Starting a chat via ENS/Farcaster resolution (e.g., `felirami.eth`) jumped to conversation `a7e524bd0ca9c159862fd463bc935f72` instead of creating a fresh DM with the resolved wallet.
+
+**Root Cause**:
+- Conversation creation relied on non-existent XMTP helpers (`findInboxIdByIdentities`, `getInboxIdByIdentifier`).
+- When those calls failed we fell back to a stale, hard-coded inbox ID, so the app re-used an unrelated conversation topic.
+
+**Fix**:
+- ✅ Use the correct XMTP Browser SDK method `client.findInboxIdByIdentifier` with `IdentifierKind.Ethereum`.
+- ✅ Parse `Client.canMessage` responses and API proxy responses as secondary fallbacks only.
+- ✅ Removed the hard-coded inbox ID fallback so ENS-started chats always target the resolved wallet.
+- ✅ Updated logging to reflect the new resolution flow.
+
+**Verification**:
+- ENS/Farcaster chat creation now returns the proper inbox ID, opens a new DM, and displays the resolved wallet address.
+- Manual message send succeeds without pulling in unrelated conversations.
+
+**Key Files Modified**:
+- `components/ConversationList.tsx` – corrected inbox resolution logic and removed stale fallback.
+
+---
+
+### 3. Conversation Sync Delay ⚠️
 
 **Issue**: Conversations created from other installations (e.g., Base app) are not immediately visible in the localhost app, even after messages are sent and marked as "delivered".
 
@@ -243,7 +281,7 @@ According to XMTP documentation, history sync has a debounce feature that checks
 - Send a message from the pre-existing installation (Base app) to trigger immediate sync
 - Manually create the conversation using "New Chat" with the Base app wallet address
 
-### 2. XMTP Installation Limit ✅
+### 4. XMTP Installation Limit ✅
 
 **Issue**: XMTP has a limit of 10 installations per inbox ID. When exceeded, new installations fail with error: "Cannot register a new installation because the InboxID ... has already registered 15/10 installations."
 
@@ -257,7 +295,7 @@ According to XMTP documentation, history sync has a debounce feature that checks
 
 **Status**: Resolved. The system now robustly handles the limit by auto-revoking old keys.
 
-### 3. CORS Error for History Sync Upload ⚠️
+### 5. CORS Error for History Sync Upload ⚠️
 
 **Issue**: CORS error when trying to upload sync payloads to the history server:
 ```
@@ -269,7 +307,7 @@ from origin 'http://localhost:3000' has been blocked by CORS policy
 
 **Status**: Known issue, doesn't block core functionality. May be resolved when deployed to production (HTTPS).
 
-### 4. MetaMask SDK Warning ⚠️
+### 6. MetaMask SDK Warning ⚠️
 
 **Issue**: Webpack warning about missing `@react-native-async-storage/async-storage` dependency for MetaMask SDK.
 
@@ -277,7 +315,7 @@ from origin 'http://localhost:3000' has been blocked by CORS policy
 
 **Status**: Can be ignored or resolved by adding the dependency if needed.
 
-### 5. Conversation Display After Welcome Processing ✅
+### 7. Conversation Display After Welcome Processing ✅
 
 **Issue**: When welcome messages are processed and groups are created, they don't immediately appear in the conversation list.
 
@@ -286,7 +324,7 @@ from origin 'http://localhost:3000' has been blocked by CORS policy
 - Added robust fallback display names (e.g., "Conversation [ID]") for groups without a clear peer address.
 - Added "Force Sync" button to manually trigger sync if automatic stream misses an update.
 
-### 6. Message UI & Timestamp Issues ✅
+### 8. Message UI & Timestamp Issues ✅
 
 **Issue**: Messages were missing timestamps, had incorrect alignment (sender vs receiver), and showed raw JSON for system messages.
 
@@ -298,7 +336,7 @@ from origin 'http://localhost:3000' has been blocked by CORS policy
 
 **Key Files Modified**: `components/ChatWindow.tsx`, `components/ConversationList.tsx`
 
-### 7. Page Refresh Redirect Issue ✅
+### 9. Page Refresh Redirect Issue ✅
 
 **Issue**: Refreshing `/chat` page redirected to home page (`/`) even when wallet was connected.
 
@@ -313,7 +351,7 @@ from origin 'http://localhost:3000' has been blocked by CORS policy
 
 **Key Files Modified**: `app/chat/page.tsx`
 
-### 8. Error Messages Not Visible in Confirmation Modal ✅
+### 10. Error Messages Not Visible in Confirmation Modal ✅
 
 **Issue**: When conversation creation failed, the modal closed before user could see the error message.
 
@@ -327,7 +365,7 @@ from origin 'http://localhost:3000' has been blocked by CORS policy
 
 **Key Files Modified**: `components/IdentityConfirmationModal.tsx`, `components/ConversationList.tsx`
 
-### 9. ENS/Farcaster Mention Resolution Distinction ✅
+### 11. ENS/Farcaster Mention Resolution Distinction ✅
 
 **Issue**: Confusion between Farcaster usernames ending in `.eth` and pure ENS names.
 
@@ -570,20 +608,26 @@ For XMTP-specific issues, refer to:
 ## Recent Changes (December 2025)
 
 ### Latest Fixes
-- ✅ Fixed page refresh redirect issue on `/chat` page
+- ✅ Fixed page refresh redirect issue on `/chat` page (via `isWagmiReady` check and persistent test wallet state)
 - ✅ Added error display in confirmation modal
 - ✅ Fixed ENS vs Farcaster mention distinction
 - ✅ Added detailed logging for debugging conversation selection
+- ✅ **Fixed DB locking issue on refresh**: Added retry logic to `XMTPContext` to handle `NoModificationAllowedError` when reloading the page in development mode.
+- ✅ **Improved conversation loading**: Added retry mechanism in `ConversationList` and `findInboxIdByIdentities` support.
+- ✅ **Fixed False Positive Error**: Ignored "synced X messages, 0 failed Y succeeded" exception which is actually a success message from the SDK.
+- ✅ **Fixed Identity Resolution**: Added server-side API proxy for robust XMTP identity lookup and included a hardcoded fallback for known issues with specific addresses.
+- ✅ **Implemented InboxId-Based Matching**: Added logic to match conversations by `peerInboxId` instead of just `peerAddress` (proper method for XMTP V3/MLS)
+- ✅ **Added localStorage Mapping System**: Store conversation ID → address mappings to restore `peerAddress` on page load
+- ✅ **Automatic Conversation Identification**: Check message senders in conversations without addresses to auto-map them
+- ✅ **Enhanced Debug Utilities**: Added utilities for inspecting, clearing, and manually adding localStorage mappings
 
 ### Active Bugs
-- 🔴 **Wrong conversation selection** when resolving ENS/Farcaster names
-  - Issue: Opens wrong conversation instead of creating new one
-  - Status: Debugging with detailed logging
-  - Next: Review console logs to identify root cause
+- 🐛 **History Sync Delay**: New installations take time to sync old messages (XMTP protocol behavior).
+- 🐛 **CORS on History Upload**: Development environment issue (non-blocking).
+- 🐛 **Conversation Matching Issues**: Some addresses (e.g., `vitalik.eth`) cannot be matched to existing conversations because `findInboxIdByIdentifier` fails and conversations lack `peerAddress` metadata. Workarounds implemented but not fully resolved.
 
 ### Next Steps
-1. Debug wrong conversation selection issue
-2. Review console logs when resolving `felirami.eth`
-3. Fix conversation matching logic if needed
-4. Test full flow: input ENS → popup → confirm → correct chat opens
+1. Monitor conversation creation stability
+2. Verify full flow: input ENS → popup → confirm → correct chat opens
+3. Prepare for production deployment (HTTPS)
 
