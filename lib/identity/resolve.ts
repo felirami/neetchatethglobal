@@ -36,7 +36,7 @@ export async function resolveMention(
 ): Promise<ResolvedIdentity | null> {
   const { useApiRoutes = false, neynarApiKey, ethRpcUrl } = options || {};
 
-  // 1. ENS – if looks like ENS (check first as it's fastest)
+  // 1. ENS – if ends with .eth, ONLY try ENS (no Farcaster fallback)
   const isEns = username.endsWith('.eth');
 
   if (isEns) {
@@ -64,9 +64,11 @@ export async function resolveMention(
         source: 'ens',
       };
     }
+    // If ENS lookup fails, return null (don't try Farcaster)
+    return null;
   }
 
-  // 2. Farcaster (for plain usernames)
+  // 2. Farcaster (for plain usernames without .eth)
   let fcUser: FarcasterUser | null = null;
 
   if (useApiRoutes) {
