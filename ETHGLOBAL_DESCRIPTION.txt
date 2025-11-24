@@ -24,3 +24,4 @@ Development Tools: Built-in debug panel, test wallet for development, and compre
 
 NeetChat demonstrates how to build a comprehensive Web3 messaging platform that bridges the gap between traditional chat apps and decentralized protocols. By integrating identity resolution (Farcaster, ENS), decentralized storage (Filecoin), financial data (oracles), and multi-chain support (Base, Ethereum), NeetChat creates a unified communication hub where wallet-to-wallet messaging becomes as intuitive as sending a text message, while maintaining the security, privacy, and decentralization principles of Web3.
 
+

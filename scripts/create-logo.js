@@ -24,3 +24,4 @@ const buffer = canvas.toBuffer('image/png');
 fs.writeFileSync('public/logo.png', buffer);
 console.log('✅ Created logo.png (1024x1024)');
 
+

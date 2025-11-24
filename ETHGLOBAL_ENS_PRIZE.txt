@@ -21,3 +21,4 @@ ADDITIONAL FEEDBACK:
 
 ENS is a critical piece of Web3 identity infrastructure and Viem makes it incredibly easy to integrate. The resolution is fast, reliable, and the API is intuitive. Our implementation demonstrates how ENS can be seamlessly integrated into messaging applications to improve UX - users don't need to remember or copy-paste long wallet addresses. The only minor improvement would be support for reverse resolution (address → ENS name) which would help display human-readable names in conversation lists. We've built a robust resolution pipeline that handles edge cases like distinguishing Farcaster usernames from ENS names, and our server-side API route ensures ENS resolution works even with browser CORS restrictions. ENS is essential for making Web3 messaging user-friendly and accessible.
 
+

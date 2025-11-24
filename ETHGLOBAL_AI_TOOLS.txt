@@ -25,3 +25,4 @@ AI tools were extensively used throughout the development of NeetChat:
 
 The project follows an AI agent protocol (defined in .cursorrules) where AI assistants read project status and development logs before making changes, ensuring continuity and proper documentation throughout the development process.
 
+

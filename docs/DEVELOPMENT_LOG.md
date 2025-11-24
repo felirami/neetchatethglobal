@@ -469,4 +469,54 @@ This document tracks the development progress of NeetChat, showing the evolution
 
 ---
 
+### Phase 15: Farcaster Mini App Publishing (November 2025)
+
+**Goal**: Create proper Farcaster Mini App assets and fix manifest to comply with publishing requirements for app store discovery.
+
+#### Completed:
+- ✅ **Fixed farcaster.json manifest**: Removed deprecated fields (`imageUrl`, `buttonTitle`, `castShareUrl`), reduced tags from 10 to 5 (max allowed), switched from SVG to PNG images
+- ✅ **Created icon-1024.png**: 1024x1024px PNG app icon with chat bubble design and "NC" branding (required for iconUrl)
+- ✅ **Created splash-200.png**: 200x200px splash screen image (required for splashImageUrl)
+- ✅ **Created og-image.png**: 1200x630px Open Graph/hero image with gradient background and feature highlights
+- ✅ **Created screenshot-1.png**: 1284x2778px portrait screenshot showing conversation list view
+- ✅ **Created screenshot-2.png**: 1284x2778px portrait screenshot showing chat view
+- ✅ **Created screenshot-3.png**: 1284x2778px portrait screenshot showing features view
+- ✅ **Created asset generation script**: `scripts/create-farcaster-assets.js` for regenerating all assets
+
+#### Key Files Created:
+- `public/icon-1024.png` - App icon (1024x1024)
+- `public/splash-200.png` - Splash image (200x200)
+- `public/og-image.png` - OG/Hero image (1200x630)
+- `public/screenshot-1.png` - Conversations screenshot (1284x2778)
+- `public/screenshot-2.png` - Chat screenshot (1284x2778)
+- `public/screenshot-3.png` - Features screenshot (1284x2778)
+- `scripts/create-farcaster-assets.js` - Asset generation script
+
+#### Key Files Modified:
+- `public/.well-known/farcaster.json` - Fixed manifest with correct image URLs and properties
+
+#### Challenges Overcome:
+- **Tag limit**: Farcaster allows max 5 tags, reduced from 10
+- **Image format requirements**: All images must be PNG, not SVG
+- **Screenshot dimensions**: Must be portrait 1284x2778px for app store display
+- **Deprecated fields**: Removed `imageUrl`, `buttonTitle` which are deprecated
+
+#### Technical Decisions:
+- Used Node.js `canvas` package (already in devDependencies) for programmatic image generation
+- Created visually consistent design system with sky blue (#0ea5e9) brand color
+- Generated realistic screenshot mockups showing actual app UI patterns
+- Made script reusable for future asset regeneration
+
+#### Manifest Compliance:
+| Property | Requirement | Status |
+|----------|-------------|--------|
+| iconUrl | 1024x1024 PNG, no alpha | ✅ |
+| splashImageUrl | 200x200px | ✅ |
+| heroImageUrl | 1200x630px (1.91:1) | ✅ |
+| ogImageUrl | 1200x630px PNG | ✅ |
+| screenshotUrls | Portrait 1284x2778, max 3 | ✅ |
+| tags | Max 5, lowercase, no special chars | ✅ |
+
+---
+
 **Note**: This development log demonstrates legitimate, incremental development work over several weeks. Each phase builds upon the previous one, showing a clear progression of features and improvements.

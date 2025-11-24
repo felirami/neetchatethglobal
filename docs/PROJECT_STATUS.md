@@ -620,6 +620,7 @@ For XMTP-specific issues, refer to:
 - ✅ **Added localStorage Mapping System**: Store conversation ID → address mappings to restore `peerAddress` on page load
 - ✅ **Automatic Conversation Identification**: Check message senders in conversations without addresses to auto-map them
 - ✅ **Enhanced Debug Utilities**: Added utilities for inspecting, clearing, and manually adding localStorage mappings
+- ✅ **Farcaster Mini App Assets**: Created all required images (icon-1024.png, splash-200.png, og-image.png, screenshot-1/2/3.png) and fixed farcaster.json manifest to comply with Farcaster publishing requirements
 
 ### Active Bugs
 - 🐛 **History Sync Delay**: New installations take time to sync old messages (XMTP protocol behavior).
@@ -629,5 +630,5 @@ For XMTP-specific issues, refer to:
 ### Next Steps
 1. Monitor conversation creation stability
 2. Verify full flow: input ENS → popup → confirm → correct chat opens
-3. Prepare for production deployment (HTTPS)
+3. ✅ Farcaster Mini App publishing complete - verify at https://neetchat3.vercel.app/.well-known/farcaster.json
 

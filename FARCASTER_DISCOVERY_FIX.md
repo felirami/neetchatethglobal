@@ -60,3 +60,4 @@ To verify the fixes:
    - All URLs are accessible over HTTPS
    - Images are properly formatted (consider PNG/JPG instead of SVG)
 
+

@@ -87,3 +87,4 @@ To test locally:
 - `public/.well-known/farcaster.json` - New manifest file
 - `package.json` - Added Farcaster dependencies
 
+

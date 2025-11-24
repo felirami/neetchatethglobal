@@ -10,12 +10,10 @@
     "subtitle": "Wallet-to-wallet messaging",
     "description": "Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address, resolve ENS names and Farcaster usernames. End-to-end encrypted conversations.",
     "tagline": "Chat with any wallet",
-    "iconUrl": "https://neetchat3.vercel.app/logo.png",
+    "iconUrl": "https://neetchat3.vercel.app/icon-1024.png",
     "homeUrl": "https://neetchat3.vercel.app",
-    "imageUrl": "https://neetchat3.vercel.app/og-image.svg",
-    "heroImageUrl": "https://neetchat3.vercel.app/og-image.svg",
-    "buttonTitle": "💬 Chat",
-    "splashImageUrl": "https://neetchat3.vercel.app/logo.png",
+    "heroImageUrl": "https://neetchat3.vercel.app/og-image.png",
+    "splashImageUrl": "https://neetchat3.vercel.app/splash-200.png",
     "splashBackgroundColor": "#0ea5e9",
     "primaryCategory": "social",
     "tags": [
@@ -23,20 +21,15 @@
       "xmtp",
       "crypto",
       "web3",
-      "decentralized",
-      "wallet",
-      "ethereum",
-      "ens",
-      "farcaster",
-      "privacy"
+      "ens"
     ],
     "screenshotUrls": [
-      "https://neetchat3.vercel.app/og-image.svg"
+      "https://neetchat3.vercel.app/screenshot-1.png",
+      "https://neetchat3.vercel.app/screenshot-2.png",
+      "https://neetchat3.vercel.app/screenshot-3.png"
     ],
     "ogTitle": "NeetChat - XMTP Messaging",
     "ogDescription": "Decentralized messaging built on XMTP. Chat securely with any Ethereum wallet address.",
-    "ogImageUrl": "https://neetchat3.vercel.app/og-image.svg",
-    "castShareUrl": "https://neetchat3.vercel.app"
+    "ogImageUrl": "https://neetchat3.vercel.app/og-image.png"
   }
 }
-
