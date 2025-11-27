@@ -517,6 +517,14 @@ This document tracks the development progress of NeetChat, showing the evolution
 | screenshotUrls | Portrait 1284x2778, max 3 | ✅ |
 | tags | Max 5, lowercase, no special chars | ✅ |
 
+#### Additional Fixes (December 2025):
+- ✅ **Fixed Farcaster Mini App Embed URL**: Updated all `fc:frame` meta tag URLs from `/chat` to `/` (root URL) to fix embed button target. The root page (`app/page.tsx`) automatically redirects to `/chat` when a wallet is connected, ensuring seamless user experience.
+
+#### Key Files Modified:
+- `app/layout.tsx` - Updated `fc:frame` metadata and inline script URL to root
+- `components/FarcasterMeta.tsx` - Updated client-side meta tag URL to root
+- `app/chat/layout.tsx` - Updated `fc:frame` metadata URL to root
+
 ---
 
 **Note**: This development log demonstrates legitimate, incremental development work over several weeks. Each phase builds upon the previous one, showing a clear progression of features and improvements.

@@ -621,6 +621,7 @@ For XMTP-specific issues, refer to:
 - ✅ **Automatic Conversation Identification**: Check message senders in conversations without addresses to auto-map them
 - ✅ **Enhanced Debug Utilities**: Added utilities for inspecting, clearing, and manually adding localStorage mappings
 - ✅ **Farcaster Mini App Assets**: Created all required images (icon-1024.png, splash-200.png, og-image.png, screenshot-1/2/3.png) and fixed farcaster.json manifest to comply with Farcaster publishing requirements
+- ✅ **Fixed Farcaster Mini App Embed URL**: Updated `fc:frame` meta tag URLs from `/chat` to `/` (root URL) to fix embed button target. The root page automatically redirects to `/chat` when wallet is connected.
 
 ### Active Bugs
 - 🐛 **History Sync Delay**: New installations take time to sync old messages (XMTP protocol behavior).

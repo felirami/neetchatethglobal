@@ -16,7 +16,7 @@ export function FarcasterMeta() {
         action: {
           type: 'launch_miniapp',
           name: 'NeetChat',
-          url: `${baseUrl}/chat`,
+          url: `${baseUrl}/`,
           splashImageUrl: `${baseUrl}/logo.svg`,
           splashBackgroundColor: '#0ea5e9',
         },
